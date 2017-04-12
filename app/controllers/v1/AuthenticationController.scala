@@ -17,12 +17,12 @@ class AuthenticationController extends Controller {
 
   private val logger = Logger(this.getClass)
 
-  // FIXME check user/password to verify worker is authorized
+  // FIXME check password to verify worker is authorized
   def login = Action.async { request =>
     request.body.asJson.map { json =>
       json.validate[Register] match {
         case req: JsSuccess[Register] => {
-          val worker = Worker(UUID.randomUUID().toString, req.value.uri)
+          val worker = Worker(UUID.randomUUID().toString, req.value.id, req.value.uri)
           logger.info(s"Register worker $req with token ${worker.token}")
           WorkerStore.workers += worker.token -> worker
           logger.debug(s"Workers ${WorkerStore.workers}")
