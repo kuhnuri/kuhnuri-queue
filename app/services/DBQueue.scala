@@ -19,7 +19,7 @@ import scala.collection.JavaConverters._
 /**
   * A database backed queue
   *
-  * @param db database for queue state
+  * @param db       database for queue state
   * @param logStore conversion log store
   */
 @Singleton
@@ -31,7 +31,7 @@ class DBQueue @Inject()(db: Database, logStore: LogStore) extends Queue with Dis
     db.withConnection { connection =>
       val sql = DSL.using(connection, SQLDialect.POSTGRES_9_4)
       sql
-        .select(QUEUE.UUID, QUEUE.INPUT, QUEUE.OUTPUT, QUEUE.TRANSTYPE, QUEUE.STATUS)
+        .select(QUEUE.UUID, QUEUE.INPUT, QUEUE.OUTPUT, QUEUE.TRANSTYPE, QUEUE.STATUS, QUEUE.CREATED, QUEUE.PROCESSING, QUEUE.FINISHED)
         .from(QUEUE)
         .orderBy(QUEUE.CREATED.desc)
         .fetch(Mappers.JobMapper).asScala.toList
@@ -40,8 +40,8 @@ class DBQueue @Inject()(db: Database, logStore: LogStore) extends Queue with Dis
   override def get(id: String): Option[Job] =
     db.withConnection { connection =>
       val sql = DSL.using(connection, SQLDialect.POSTGRES_9_4)
-      var query = sql
-        .select(QUEUE.UUID, QUEUE.INPUT, QUEUE.OUTPUT, QUEUE.TRANSTYPE, QUEUE.STATUS)
+      val query = sql
+        .select(QUEUE.UUID, QUEUE.INPUT, QUEUE.OUTPUT, QUEUE.TRANSTYPE, QUEUE.STATUS, QUEUE.CREATED, QUEUE.PROCESSING, QUEUE.FINISHED)
         .from(QUEUE)
         .where(QUEUE.UUID.eq(id))
       Option(query
@@ -53,15 +53,17 @@ class DBQueue @Inject()(db: Database, logStore: LogStore) extends Queue with Dis
 
   override def add(job: Create): Job = {
     db.withConnection { connection =>
+      val created = LocalDateTime.now(ZoneOffset.UTC)
       val sql = DSL.using(connection, SQLDialect.POSTGRES_9_4)
-      var query = sql
+      val query = sql
         .insertInto(QUEUE,
           QUEUE.UUID, QUEUE.CREATED, QUEUE.INPUT, QUEUE.OUTPUT, QUEUE.TRANSTYPE)
-        .values(UUID.randomUUID().toString, Timestamp.valueOf(LocalDateTime.now(ZoneOffset.UTC)),
+        .values(UUID.randomUUID().toString, Timestamp.valueOf(created),
           job.input, job.output, job.transtype)
         .returning(QUEUE.UUID, QUEUE.STATUS)
         .fetchOne()
-      Job(query.getUuid, job.input, job.output, job.transtype, Map.empty, StatusString.parse(query.getStatus))
+      Job(query.getUuid, job.input, job.output, job.transtype, Map.empty, StatusString.parse(query.getStatus),
+        created, None, None)
     }
   }
 
@@ -69,9 +71,15 @@ class DBQueue @Inject()(db: Database, logStore: LogStore) extends Queue with Dis
     db.withConnection { connection =>
       logger.info("update")
       val sql = DSL.using(connection, SQLDialect.POSTGRES_9_4)
-      var query = sql
+      val query = sql
         .update(QUEUE)
         .set(QUEUE.STATUS, Status.valueOf(update.status.get.toString))
+        .set(update.status.get match {
+          case StatusString.Queue => QUEUE.CREATED
+          case StatusString.Process => QUEUE.PROCESSING
+          case StatusString.Done => QUEUE.FINISHED
+          case StatusString.Error => QUEUE.FINISHED
+        }, Timestamp.valueOf(LocalDateTime.now(ZoneOffset.UTC)))
         .where(QUEUE.UUID.eq(update.id))
         .returning(QUEUE.UUID, QUEUE.STATUS)
         .execute()
@@ -83,9 +91,10 @@ class DBQueue @Inject()(db: Database, logStore: LogStore) extends Queue with Dis
     db.withConnection { connection =>
       logger.debug("Request work for transtypes " + transtypes.mkString(", "))
       val sql = DSL.using(connection, SQLDialect.POSTGRES_9_4)
-      var query = sql
+      val query = sql
         .update(QUEUE)
         .set(QUEUE.STATUS, Status.process)
+        .set(QUEUE.PROCESSING, Timestamp.valueOf(LocalDateTime.now(ZoneOffset.UTC)))
         .where(QUEUE.UUID.in(
           sql.select(QUEUE.UUID)
             .from(QUEUE)
@@ -93,13 +102,14 @@ class DBQueue @Inject()(db: Database, logStore: LogStore) extends Queue with Dis
               .and(QUEUE.TRANSTYPE.in(transtypes)))
             .orderBy(QUEUE.CREATED.asc())
             .limit(1)))
-        .returning(QUEUE.UUID, QUEUE.INPUT, QUEUE.OUTPUT, QUEUE.TRANSTYPE, QUEUE.STATUS)
+        .returning(QUEUE.UUID, QUEUE.INPUT, QUEUE.OUTPUT, QUEUE.TRANSTYPE, QUEUE.STATUS, QUEUE.CREATED, QUEUE.PROCESSING, QUEUE.FINISHED)
         .fetchOne()
       logger.debug(s"Request got back ${query}")
       query match {
         case null => None
         case res => Some(Job(res.getUuid, res.getInput, res.getOutput,
-          res.getTranstype, Map.empty, StatusString.parse(res.getStatus)))
+          res.getTranstype, Map.empty, StatusString.parse(res.getStatus),
+          res.getCreated.toLocalDateTime, Some(res.getProcessing.toLocalDateTime), Some(res.getFinished.toLocalDateTime)))
       }
     }
 
@@ -110,7 +120,8 @@ class DBQueue @Inject()(db: Database, logStore: LogStore) extends Queue with Dis
       val sql = DSL.using(connection, SQLDialect.POSTGRES_9_4)
       sql
         .update(QUEUE)
-        .set(QUEUE.STATUS, Status.done)
+        .set(QUEUE.STATUS, Status.valueOf(res.job.status.toString))
+        .set(QUEUE.FINISHED, Timestamp.valueOf(LocalDateTime.now(ZoneOffset.UTC)))
         .where(QUEUE.UUID.eq(res.job.id))
         .execute()
       logStore.add(res.job.id, res.log)
@@ -122,16 +133,19 @@ private object Mappers {
   type ReviewStatus = String
   type CommentError = String
 
-  object JobMapper extends RecordMapper[Record5[String, String, String, String, Status], Job] {
+  object JobMapper extends RecordMapper[Record8[String, String, String, String, Status, Timestamp, Timestamp, Timestamp], Job] {
     @Override
-    def map(c: Record5[String, String, String, String, Status]): Job = {
+    def map(c: Record8[String, String, String, String, Status, Timestamp, Timestamp, Timestamp]): Job = {
       Job(
         c.value1,
         c.value2,
         c.value3,
         c.value4,
         Map.empty,
-        StatusString.parse(c.value5)
+        StatusString.parse(c.value5),
+        c.value6.toLocalDateTime,
+        Option(c.value7).map(_.toLocalDateTime),
+        Option(c.value8).map(_.toLocalDateTime)
       )
     }
   }

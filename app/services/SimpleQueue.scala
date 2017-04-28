@@ -1,6 +1,6 @@
 package services
 
-import java.time.ZoneOffset
+import java.time.{LocalDateTime, ZoneOffset}
 import javax.inject.Singleton
 
 import models._
@@ -13,15 +13,13 @@ class SimpleQueue extends Queue with Dispatcher {
 
   private val logger = Logger(this.getClass)
 
-  val data: mutable.Map[String, JobRow] = mutable.Map()
+  val data: mutable.Map[String, Job] = mutable.Map()
 
   override def contents(): List[Job] =
-    data.values.map(_.toJob).toList
+    data.values.seq.toList.sortBy(_.created.toEpochSecond(ZoneOffset.UTC))
 
   override def get(id: String): Option[Job] =
-    data
-      .get(id)
-      .map(job => Job(id, job.input, job.output, job.transtype, job.params, StatusString.Queue))
+    data.get(id)
 
   override def log(id: String, offset: Int): Option[Seq[String]] = ???
 
@@ -29,10 +27,10 @@ class SimpleQueue extends Queue with Dispatcher {
   //      .get(id)
   //      .map(job => Job(id, job.input, job.output, job.transtype, job.params, StatusString.Queue))
 
-  override def add(job: Create): Job = {
-    val jobRow = JobRow(job)
-    data += jobRow.id -> jobRow
-    jobRow.toJob
+  override def add(newJob: Create): Job = {
+    val job = newJob.toJob
+    data += job.id -> job
+    job
   }
 
   override def update(update: Update): Option[Job] = {
@@ -40,7 +38,7 @@ class SimpleQueue extends Queue with Dispatcher {
       case Some(job) => {
         val res = job.copy(status = update.status.getOrElse(job.status))
         data += res.id -> res
-        Some(res.toJob)
+        Some(res)
       }
       case None => None
     }
@@ -53,23 +51,23 @@ class SimpleQueue extends Queue with Dispatcher {
       .sortBy(j => j.created.toEpochSecond(ZoneOffset.UTC))
       .find(j => transtypes.contains(j.transtype)) match {
       case Some(job) => {
-        val res = job.copy(status = StatusString.Process)
+        val res = job.copy(status = StatusString.Process, processing = Some(LocalDateTime.now(ZoneOffset.UTC)))
         data += res.id -> res
-        Some(res.toJob)
+        Some(res)
       }
       case None => None
     }
   }
 
   // FIXME this should return a Try or Option
-  override def submit(orig: JobResult): Job = {
-    data.get(orig.job.id) match {
+  override def submit(result: JobResult): Job = {
+    data.get(result.job.id) match {
       case Some(job) => {
-        val res = job.copy(status = StatusString.Done)
+        val res = job.copy(status = result.job.status, finished = Some(LocalDateTime.now(ZoneOffset.UTC)))
         data += res.id -> res
-        res.toJob
+        res
       }
-      case None => orig.job
+      case None => result.job
     }
   }
 }

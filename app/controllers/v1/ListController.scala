@@ -2,6 +2,7 @@ package controllers.v1
 
 import java.lang.IllegalArgumentException
 import java.net.URI
+import java.time.{LocalDateTime, ZoneOffset}
 import javax.inject._
 
 import models._
@@ -63,6 +64,10 @@ class ListController @Inject()(queue: Queue) extends Controller {
 }
 
 object ListController {
+  implicit val localDateTimeWrites =
+    Writes[LocalDateTime](s => JsString(s.atOffset(ZoneOffset.UTC).toString))
+
+
   implicit val jobStatusStringReads =
     Reads[StatusString](j => try {
       JsSuccess(StatusString.parse(j.as[JsString].value))
@@ -88,7 +93,10 @@ object ListController {
       (JsPath \ "output").write[String] and
       (JsPath \ "transtype").write[String] and
       (JsPath \ "params").write[Map[String, String]] and
-      (JsPath \ "status").write[StatusString]
+      (JsPath \ "status").write[StatusString] and
+      (JsPath \ "created").write[LocalDateTime] and
+      (JsPath \ "processing").write[Option[LocalDateTime]] and
+      (JsPath \ "finished").write[Option[LocalDateTime]]
     ) (unlift(Job.unapply _))
   implicit val jobReads: Reads[Job] = (
     (JsPath \ "id").read[String] and
@@ -98,7 +106,10 @@ object ListController {
       }.getOrElse(true))*/ and
       (JsPath \ "transtype").read[String] and
       (JsPath \ "params").read[Map[String, String]] and
-      (JsPath \ "status").read[StatusString]
+      (JsPath \ "status").read[StatusString] and
+      (JsPath \ "created").read[LocalDateTime] and
+      (JsPath \ "processing").readNullable[LocalDateTime] and
+      (JsPath \ "finished").readNullable[LocalDateTime]
     ) (Job.apply _)
 
   implicit val jobResultReads: Reads[JobResult] = (

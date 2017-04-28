@@ -1,16 +1,31 @@
 package models
 
+import java.time.{LocalDateTime, ZoneOffset}
+import java.util.UUID
+
 import generated.enums.Status
 
+/**
+  * Job storage.
+  *
+  * @param id        job ID
+  * @param input     input file
+  * @param output    output file
+  * @param transtype transformation type
+  * @param params    DITA-OT parameters
+  * @param status    status of the conversion
+  */
 sealed case class Job(id: String, input: String, output: String, transtype: String,
-                      params: Map[String, String],
-                      status: StatusString) {
-  //  def toJobStatus(status: StatusString): JobStatus = {
-  //    JobStatus(id, output, status)
-  //  }
+                      params: Map[String, String], status: StatusString,
+                      created: LocalDateTime, processing: Option[LocalDateTime], finished: Option[LocalDateTime])
+
+object Job {
 }
 
 sealed case class Create(input: String, output: String, transtype: String, params: Map[String, String]) {
+  def toJob: Job =
+    Job(UUID.randomUUID().toString, this.input, this.output, this.transtype, this.params,
+      StatusString.Queue, LocalDateTime.now(ZoneOffset.UTC), None, None)
 }
 
 sealed case class JobResult(job: Job, log: Seq[String])
