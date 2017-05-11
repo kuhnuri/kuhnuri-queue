@@ -45,7 +45,7 @@
     <appender-ref ref="STDOUT" />
   </logger>
 
-  <logger name="controllers.v1.WorkController" level="INFO">
+  <logger name="controllers.v1.WorkController" level="DEBUG">
     <appender-ref ref="STDOUT" />
   </logger>
 

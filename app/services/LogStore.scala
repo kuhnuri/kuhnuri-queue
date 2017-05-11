@@ -1,6 +1,6 @@
 package services
 
-import javax.inject.{Inject, Singleton}
+import javax.inject.Singleton
 
 import play.api.Logger
 
@@ -11,6 +11,7 @@ import scala.collection.mutable
   */
 trait LogStore {
   def add(id: String, log: Seq[String]): Unit
+
   def get(id: String): Option[Seq[String]]
 }
 
@@ -22,11 +23,13 @@ class SimpleLogStore extends LogStore {
 
   private val logger = Logger(this.getClass)
 
-  val logs  = mutable.Map[String, Seq[String]]()
+  val logs = mutable.Map[String, Seq[String]]()
+
   override def add(id: String, log: Seq[String]): Unit = {
     logger.info(s"Add $id to log store: ${log.size} lines")
     logs += id -> log
   }
+
   override def get(id: String): Option[Seq[String]] = {
     logger.info("Log store has " + logs.keys.mkString(", "))
     logs.get(id)

@@ -3,12 +3,11 @@ package controllers.v1
 import java.util.UUID
 
 import filters.TokenAuthorizationFilter._
-import play.api.Logger
-import play.api.libs.json.{JsError, JsSuccess, Json}
-import play.api.mvc.{Action, Controller, Results}
 import models._
+import play.api.Logger
+import play.api.libs.json.{JsError, JsSuccess}
+import play.api.mvc.{Action, Controller, Results}
 import services.WorkerStore
-import play.api.libs.json._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future

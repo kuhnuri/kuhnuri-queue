@@ -11,8 +11,8 @@ import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class TokenAuthorizationFilter @Inject()(
-    implicit override val mat: Materializer,
-    exec: ExecutionContext) extends Filter {
+                                          implicit override val mat: Materializer,
+                                          exec: ExecutionContext) extends Filter {
 
   import TokenAuthorizationFilter._
 
@@ -38,6 +38,7 @@ class TokenAuthorizationFilter @Inject()(
     }
   }
 }
+
 object TokenAuthorizationFilter {
   val AUTH_TOKEN_HEADER = "X-Auth-Token"
 }

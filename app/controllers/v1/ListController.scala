@@ -1,7 +1,5 @@
 package controllers.v1
 
-import java.lang.IllegalArgumentException
-import java.net.URI
 import java.time.{LocalDateTime, ZoneOffset}
 import javax.inject._
 
@@ -16,6 +14,9 @@ import services.Queue
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
+/**
+  * Controller for queue client communication
+  */
 @Singleton
 class ListController @Inject()(queue: Queue) extends Controller {
 
@@ -79,8 +80,8 @@ object ListController {
     Writes[StatusString](s => JsString(s.toString))
 
   implicit val createReads: Reads[Create] = (
-    (JsPath \ "input").read[String]/*.filter(new URI(_).isAbsolute)*/ and
-      (JsPath \ "output").read[String]/*.filter(_.map {
+    (JsPath \ "input").read[String] /*.filter(new URI(_).isAbsolute)*/ and
+      (JsPath \ "output").read[String] /*.filter(_.map {
         new URI(_).isAbsolute
       }.getOrElse(true))*/ and
       (JsPath \ "transtype").read[String] and
@@ -100,8 +101,8 @@ object ListController {
     ) (unlift(Job.unapply _))
   implicit val jobReads: Reads[Job] = (
     (JsPath \ "id").read[String] and
-      (JsPath \ "input").read[String]/*.filter(new URI(_).isAbsolute)*/ and
-      (JsPath \ "output").read[String]/*.filter(_.map {
+      (JsPath \ "input").read[String] /*.filter(new URI(_).isAbsolute)*/ and
+      (JsPath \ "output").read[String] /*.filter(_.map {
         new URI(_).isAbsolute
       }.getOrElse(true))*/ and
       (JsPath \ "transtype").read[String] and
@@ -118,8 +119,8 @@ object ListController {
     ) (JobResult.apply _)
 
   //  implicit val jobStatusWrites: Writes[JobStatus] = (
-//    (JsPath \ "id").write[String] and
-//      (JsPath \ "output").writeNullable[String] and
-//      (JsPath \ "status").write[StatusString]
-//    ) (unlift(JobStatus.unapply _))
+  //    (JsPath \ "id").write[String] and
+  //      (JsPath \ "output").writeNullable[String] and
+  //      (JsPath \ "status").write[StatusString]
+  //    ) (unlift(JobStatus.unapply _))
 }

@@ -1,7 +1,5 @@
 package services
 
-import javax.inject.Inject
-
 import models._
 
 /**
@@ -9,11 +7,11 @@ import models._
   */
 trait Dispatcher {
   // client methods
-//  def status(id: String): Option[JobStatus]
-//
-//  def create(job: Create): Job
-//
-//  def list(): List[Job]
+  //  def status(id: String): Option[JobStatus]
+  //
+  //  def create(job: Create): Job
+  //
+  //  def list(): List[Job]
 
   // worker methods
   /**

@@ -2,9 +2,9 @@ package models
 
 import java.net.URI
 
+import models.Register.uriReads
 import play.api.libs.functional.syntax._
 import play.api.libs.json._
-import models.Register.uriReads
 
 case class Worker(token: String, id: String, uri: URI)
 
