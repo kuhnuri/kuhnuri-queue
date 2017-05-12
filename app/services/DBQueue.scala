@@ -31,7 +31,8 @@ class DBQueue @Inject()(db: Database, logStore: LogStore) extends Queue with Dis
     db.withConnection { connection =>
       val sql = DSL.using(connection, SQLDialect.POSTGRES_9_4)
       sql
-        .select(QUEUE.UUID, QUEUE.INPUT, QUEUE.OUTPUT, QUEUE.TRANSTYPE, QUEUE.STATUS, QUEUE.CREATED, QUEUE.PROCESSING, QUEUE.FINISHED)
+        .select(QUEUE.UUID, QUEUE.INPUT, QUEUE.OUTPUT, QUEUE.TRANSTYPE, QUEUE.STATUS, QUEUE.PRIORITY,
+          QUEUE.CREATED, QUEUE.PROCESSING, QUEUE.FINISHED)
         .from(QUEUE)
         .orderBy(QUEUE.CREATED.desc)
         .fetch(Mappers.JobMapper).asScala.toList
@@ -41,7 +42,8 @@ class DBQueue @Inject()(db: Database, logStore: LogStore) extends Queue with Dis
     db.withConnection { connection =>
       val sql = DSL.using(connection, SQLDialect.POSTGRES_9_4)
       val query = sql
-        .select(QUEUE.UUID, QUEUE.INPUT, QUEUE.OUTPUT, QUEUE.TRANSTYPE, QUEUE.STATUS, QUEUE.CREATED, QUEUE.PROCESSING, QUEUE.FINISHED)
+        .select(QUEUE.UUID, QUEUE.INPUT, QUEUE.OUTPUT, QUEUE.TRANSTYPE, QUEUE.STATUS, QUEUE.PRIORITY,
+          QUEUE.CREATED, QUEUE.PROCESSING, QUEUE.FINISHED)
         .from(QUEUE)
         .where(QUEUE.UUID.eq(id))
       Option(query
@@ -63,7 +65,7 @@ class DBQueue @Inject()(db: Database, logStore: LogStore) extends Queue with Dis
         .returning(QUEUE.UUID, QUEUE.STATUS)
         .fetchOne()
       Job(query.getUuid, job.input, job.output, job.transtype, Map.empty, StatusString.parse(query.getStatus),
-        created, None, None)
+        job.priority.getOrElse(0), created, None, None)
     }
   }
 
@@ -108,7 +110,7 @@ class DBQueue @Inject()(db: Database, logStore: LogStore) extends Queue with Dis
       query match {
         case null => None
         case res => Some(Job(res.getUuid, res.getInput, res.getOutput,
-          res.getTranstype, Map.empty, StatusString.parse(res.getStatus),
+          res.getTranstype, Map.empty, StatusString.parse(res.getStatus), res.getPriority.intValue(),
           res.getCreated.toLocalDateTime, Some(res.getProcessing.toLocalDateTime), Some(res.getFinished.toLocalDateTime)))
       }
     }
@@ -133,9 +135,9 @@ private object Mappers {
   type ReviewStatus = String
   type CommentError = String
 
-  object JobMapper extends RecordMapper[Record8[String, String, String, String, Status, Timestamp, Timestamp, Timestamp], Job] {
+  object JobMapper extends RecordMapper[Record9[String, String, String, String, Status, Integer, Timestamp, Timestamp, Timestamp], Job] {
     @Override
-    def map(c: Record8[String, String, String, String, Status, Timestamp, Timestamp, Timestamp]): Job = {
+    def map(c: Record9[String, String, String, String, Status, Integer, Timestamp, Timestamp, Timestamp]): Job = {
       Job(
         c.value1,
         c.value2,
@@ -143,9 +145,10 @@ private object Mappers {
         c.value4,
         Map.empty,
         StatusString.parse(c.value5),
-        c.value6.toLocalDateTime,
-        Option(c.value7).map(_.toLocalDateTime),
-        Option(c.value8).map(_.toLocalDateTime)
+        c.value6,
+        c.value7.toLocalDateTime,
+        Option(c.value8).map(_.toLocalDateTime),
+        Option(c.value9).map(_.toLocalDateTime)
       )
     }
   }

@@ -16,16 +16,16 @@ import generated.enums.Status
   * @param status    status of the conversion
   */
 sealed case class Job(id: String, input: String, output: String, transtype: String,
-                      params: Map[String, String], status: StatusString,
+                      params: Map[String, String], status: StatusString, priority: Int,
                       created: LocalDateTime, processing: Option[LocalDateTime], finished: Option[LocalDateTime])
 
 object Job {
 }
 
-sealed case class Create(input: String, output: String, transtype: String, params: Map[String, String]) {
+sealed case class Create(input: String, output: String, transtype: String, priority: Option[Int], params: Map[String, String]) {
   def toJob: Job =
     Job(UUID.randomUUID().toString, this.input, this.output, this.transtype, this.params,
-      StatusString.Queue, LocalDateTime.now(ZoneOffset.UTC), None, None)
+      StatusString.Queue, priority.getOrElse(0), LocalDateTime.now(ZoneOffset.UTC), None, None)
 }
 
 sealed case class JobResult(job: Job, log: Seq[String])

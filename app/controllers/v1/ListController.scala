@@ -85,6 +85,7 @@ object ListController {
         new URI(_).isAbsolute
       }.getOrElse(true))*/ and
       (JsPath \ "transtype").read[String] and
+      (JsPath \ "priority").readNullable[Int] and
       (JsPath \ "params").read[Map[String, String]]
     ) (Create.apply _)
 
@@ -95,6 +96,7 @@ object ListController {
       (JsPath \ "transtype").write[String] and
       (JsPath \ "params").write[Map[String, String]] and
       (JsPath \ "status").write[StatusString] and
+      (JsPath \ "priority").write[Int] and
       (JsPath \ "created").write[LocalDateTime] and
       (JsPath \ "processing").write[Option[LocalDateTime]] and
       (JsPath \ "finished").write[Option[LocalDateTime]]
@@ -108,6 +110,7 @@ object ListController {
       (JsPath \ "transtype").read[String] and
       (JsPath \ "params").read[Map[String, String]] and
       (JsPath \ "status").read[StatusString] and
+      (JsPath \ "priority").read[Int] and
       (JsPath \ "created").read[LocalDateTime] and
       (JsPath \ "processing").readNullable[LocalDateTime] and
       (JsPath \ "finished").readNullable[LocalDateTime]
