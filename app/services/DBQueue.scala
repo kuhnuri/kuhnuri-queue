@@ -102,7 +102,7 @@ class DBQueue @Inject()(db: Database, logStore: LogStore) extends Queue with Dis
             .from(QUEUE)
             .where(QUEUE.STATUS.eq(Status.queue)
               .and(QUEUE.TRANSTYPE.in(transtypes)))
-            .orderBy(QUEUE.CREATED.asc())
+            .orderBy(QUEUE.PRIORITY.asc, QUEUE.CREATED.asc())
             .limit(1)))
         .returning(QUEUE.UUID, QUEUE.INPUT, QUEUE.OUTPUT, QUEUE.TRANSTYPE, QUEUE.STATUS, QUEUE.CREATED, QUEUE.PROCESSING, QUEUE.FINISHED)
         .fetchOne()

@@ -48,7 +48,7 @@ class SimpleQueue extends Queue with Dispatcher {
     data.values
       .filter(j => j.status == StatusString.Queue)
       .toList
-      .sortBy(j => j.created.toEpochSecond(ZoneOffset.UTC))
+      .sortWith(compare)
       .find(j => transtypes.contains(j.transtype)) match {
       case Some(job) => {
         val res = job.copy(status = StatusString.Process, processing = Some(LocalDateTime.now(ZoneOffset.UTC)))
@@ -57,6 +57,14 @@ class SimpleQueue extends Queue with Dispatcher {
       }
       case None => None
     }
+  }
+
+  private def compare(j: Job, k: Job): Boolean = {
+    val p = j.priority.compareTo(k.priority)
+    if (p != 0) {
+      return p < 0
+    }
+    j.created.toEpochSecond(ZoneOffset.UTC).compareTo(k.created.toEpochSecond(ZoneOffset.UTC)) < 0
   }
 
   // FIXME this should return a Try or Option
