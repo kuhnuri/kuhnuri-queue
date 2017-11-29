@@ -1,12 +1,17 @@
 FROM openjdk:8-jre-alpine
 
-COPY target/universal/com-elovirta-kuhnuri-queue-1.0-SNAPSHOT.zip /
-RUN unzip /com-elovirta-kuhnuri-queue-1.0-SNAPSHOT.zip -d /
-RUN rm /com-elovirta-kuhnuri-queue-1.0-SNAPSHOT.zip
-RUN chmod 755 /com-elovirta-kuhnuri-queue-1.0-SNAPSHOT/bin/com-elovirta-kuhnuri-queue
+#COPY target/universal/com-elovirta-kuhnuri-queue-1.0-SNAPSHOT.zip /
+#RUN unzip /com-elovirta-kuhnuri-queue-1.0-SNAPSHOT.zip -d /
+#RUN rm /com-elovirta-kuhnuri-queue-1.0-SNAPSHOT.zip
+#RUN chmod 755 /com-elovirta-kuhnuri-queue-1.0-SNAPSHOT/bin/com-elovirta-kuhnuri-queue
+#WORKDIR /com-elovirta-kuhnuri-queue-1.0-SNAPSHOT
+RUN mkdir -p /opt/app/conf
+COPY target/universal/stage/conf /opt/app/conf
+RUN mkdir -p /opt/app/lib
+COPY target/universal/stage/lib /opt/app/lib
+WORKDIR /opt/app
 RUN mkdir -p /opt/workspace
 
-WORKDIR /com-elovirta-kuhnuri-queue-1.0-SNAPSHOT
 EXPOSE 9000
 VOLUME ["/opt/workspace"]
 

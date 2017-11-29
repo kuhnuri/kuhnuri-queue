@@ -1,6 +1,6 @@
 version: '3'
 services:
-  cms:
+  queue:
     build: .
     ports:
       - 9001:9000
