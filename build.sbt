@@ -22,4 +22,5 @@ generateJOOQ := {
   ((sourceManaged.value / "main/generated") ** "*.java").get
 }
 
-unmanagedSourceDirectories in Compile += sourceManaged.value / "main"
+//unmanagedSourceDirectories in Compile += sourceManaged.value / "main"
+unmanagedSourceDirectories in Compile += baseDirectory.value / "src/main/java"

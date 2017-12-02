@@ -16,7 +16,8 @@
     </database>
     <target>
       <packageName>generated</packageName>
-      <directory>target/scala-2.11/src_managed/main</directory>
+      <!--directory>target/scala-2.11/src_managed/main</directory-->
+      <directory>src/main/java</directory>
       <encoding>UTF-8</encoding>
     </target>
   </generator>
