@@ -4,17 +4,18 @@ version := "1.0-SNAPSHOT"
 
 lazy val root = (project in file(".")).enablePlugins(PlayScala)
 
-scalaVersion := "2.11.8"
+scalaVersion := "2.12.4"
 
 libraryDependencies += jdbc
-libraryDependencies += cache
+libraryDependencies += ehcache
 libraryDependencies += ws
+libraryDependencies += guice
 libraryDependencies += filters
-libraryDependencies += "org.postgresql" % "postgresql" % "9.4-1201-jdbc41"
-libraryDependencies += "org.jooq" % "jooq" % "3.9.1"
-libraryDependencies += "org.jooq" % "jooq-codegen-maven" % "3.9.1"
-libraryDependencies += "org.jooq" % "jooq-meta" % "3.9.1"
-libraryDependencies += "org.scalatestplus.play" %% "scalatestplus-play" % "1.5.1" % Test
+libraryDependencies += "org.postgresql" % "postgresql" % "42.2.1"
+libraryDependencies += "org.jooq" % "jooq" % "3.10.5"
+libraryDependencies += "org.jooq" % "jooq-codegen-maven" % "3.10.5"
+libraryDependencies += "org.jooq" % "jooq-meta" % "3.10.5"
+libraryDependencies += "org.scalatestplus.play" %% "scalatestplus-play" % "3.1.2" % "test"
 
 val generateJOOQ = taskKey[Seq[File]]("Generate JooQ classes")
 generateJOOQ := {

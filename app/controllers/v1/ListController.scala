@@ -18,7 +18,7 @@ import scala.concurrent.Future
   * Controller for queue client communication
   */
 @Singleton
-class ListController @Inject()(queue: Queue) extends Controller {
+class ListController @Inject()(queue: Queue, cc: ControllerComponents) extends AbstractController(cc) {
 
   import ListController._
 

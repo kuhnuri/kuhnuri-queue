@@ -3,16 +3,17 @@ package controllers.v1
 import java.util.UUID
 
 import filters.TokenAuthorizationFilter._
+import javax.inject.Inject
 import models._
 import play.api.Logger
 import play.api.libs.json.{JsError, JsSuccess}
-import play.api.mvc.{Action, Controller, Results}
+import play.api.mvc._
 import services.WorkerStore
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
-class AuthenticationController extends Controller {
+class AuthenticationController @Inject()(cc: ControllerComponents) extends AbstractController(cc) {
 
   private val logger = Logger(this.getClass)
 

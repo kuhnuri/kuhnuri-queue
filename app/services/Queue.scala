@@ -9,7 +9,7 @@ trait Queue {
 
   def add(job: Create): Job
 
-  def contents(): List[Job]
+  def contents(): Seq[Job]
 
   def update(job: Update): Option[Job]
 

@@ -1,8 +1,3 @@
-CREATE USER "play"
-  NOSUPERUSER
-  INHERIT
-  CREATEROLE;
-
 CREATE DATABASE queue WITH OWNER = "play" ENCODING 'UTF8';
 
 GRANT ALL PRIVILEGES ON DATABASE queue TO "play";
@@ -20,6 +15,7 @@ CREATE TABLE queue
   output     VARCHAR(256)                     NOT NULL,
   status     STATUS DEFAULT 'queue' :: STATUS NOT NULL,
   id         SERIAL                           NOT NULL,
+  priority   INTEGER DEFAULT 0                NOT NULL,
   processing TIMESTAMP WITH TIME ZONE,
   finished   TIMESTAMP WITH TIME ZONE
 );

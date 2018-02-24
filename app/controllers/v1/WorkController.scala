@@ -12,10 +12,10 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 /**
-  * Controller for worker communication API.
-  */
+ * Controller for worker communication API.
+ */
 @Singleton
-class WorkController @Inject()(dispatcher: Dispatcher) extends Controller {
+class WorkController @Inject()(dispatcher: Dispatcher, cc: ControllerComponents) extends AbstractController(cc) {
 
   import controllers.v1.ListController._
 
