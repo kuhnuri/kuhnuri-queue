@@ -1,6 +1,7 @@
 version: '3'
 services:
   queue:
+    image: "jelovirt/kuhnuri_queue:latest"
     build: .
     ports:
       - 9001:9000
