@@ -21,10 +21,9 @@ import scala.collection.JavaConverters._
   * @param logStore conversion log store
   */
 @Singleton
-class DBQueue @Inject()(db: Database, logStore: LogStore) extends Queue with Dispatcher {
+class DBQueue @Inject()(db: Database, logStore: LogStore, clock: Clock) extends Queue with Dispatcher {
 
   private val logger = Logger(this.getClass)
-  private val clock = Clock.systemDefaultZone()
 
   override def contents(): Seq[Job] = {
     db.withConnection { connection =>

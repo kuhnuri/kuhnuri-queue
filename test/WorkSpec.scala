@@ -1,10 +1,15 @@
+import java.net.URI
+import java.time.{Clock, Instant, LocalDateTime, ZoneOffset}
+
+import filters.TokenAuthorizationFilter.AUTH_TOKEN_HEADER
+import models.Register
 import models.StatusString.Queue
 import org.scalatest.TestData
 import org.scalatestplus.play._
 import play.api.Application
 import play.api.inject.bind
 import play.api.inject.guice.GuiceApplicationBuilder
-import play.api.libs.json.{JsArray, JsObject, JsString, JsValue}
+import play.api.libs.json._
 import play.api.test.Helpers.{contentAsJson, contentType, _}
 import play.api.test._
 import services.{Dispatcher, DummyQueue, Queue}
@@ -16,9 +21,15 @@ import services.{Dispatcher, DummyQueue, Queue}
   */
 class WorkSpec extends PlaySpec with OneAppPerTest {
 
+  private val clock: Clock = Clock.fixed(Instant.now(), ZoneOffset.UTC.normalized())
+  private val now = LocalDateTime.now(clock).atOffset(ZoneOffset.UTC)
+
   implicit override def newAppForTest(testData: TestData): Application =  new GuiceApplicationBuilder()
 //    .configure(Map("ehcacheplugin" -> "disabled"))
-    .overrides(bind(classOf[Dispatcher]).to(classOf[DummyQueue]))
+    .overrides(
+      bind(classOf[Dispatcher]).to(classOf[DummyQueue]),
+      bind(classOf[Clock]).to(clock)
+    )
     .build()
 
 //  implicit override lazy val app = new GuiceApplicationBuilder()
@@ -32,51 +43,98 @@ class WorkSpec extends PlaySpec with OneAppPerTest {
 
   "WorkController" should {
 
+    var token: String = null
+
+    "accept registration" in {
+      val query = JsObject(Map(
+        "id" -> JsString("foo"),
+        "uri" -> JsString("http://example.com/")
+      ))
+      val registration = route(app, FakeRequest(POST, "/api/v1/login")
+        .withJsonBody(query)
+      ).get
+
+      status(registration) mustBe OK
+      token = headers(registration).apply(AUTH_TOKEN_HEADER)
+    }
+
     "return job" in {
       val query = JsArray(List(
         JsString("html5")
       ))
-      val first = route(app, FakeRequest(POST, "/api/v1/work").withJsonBody(query)).get
+      val first = route(app, FakeRequest(POST, "/api/v1/work")
+        .withJsonBody(query)
+        .withHeaders(AUTH_TOKEN_HEADER -> token)
+      ).get
 
       status(first) mustBe OK
       contentType(first) mustBe Some("application/json")
       contentAsJson(first) mustEqual JsObject(Map(
+        "created" -> JsString(now.minusHours(2).toString),
+        "finished" -> JsNull,
         "id" -> JsString("id-A1"),
         "input" -> JsString("file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap"),
-        "output" -> JsString("file:/Volumes/tmp/out"),
+        "output" -> JsString("file:/Volumes/tmp/out/"),
         "transtype" -> JsString("html5"),
-        "params" -> JsObject(List.empty)
+        "params" -> JsObject(List.empty),
+        "priority" -> JsNumber(0),
+        "processing" -> JsString(now.toString),
+        "status" -> JsString("process")
       ))
+    }
 
-      val second = route(app, FakeRequest(POST, "/api/v1/work").withJsonBody(query)).get
+    "return job again" in {
+      val query = JsArray(List(
+        JsString("html5")
+      ))
+      val second = route(app, FakeRequest(POST, "/api/v1/work")
+        .withJsonBody(query)
+        .withHeaders(AUTH_TOKEN_HEADER -> token)
+      ).get
 
       status(second) mustBe OK
       contentType(second) mustBe Some("application/json")
       contentAsJson(second) mustEqual JsObject(Map(
-        "id" -> JsString("id-A"),
+        "created" -> JsString(now.minusHours(2).toString),
+        "finished" -> JsNull,
+        "id" -> JsString("id-A1"),
         "input" -> JsString("file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap"),
-        "output" -> JsString("file:/Volumes/tmp/out"),
+        "output" -> JsString("file:/Volumes/tmp/out/"),
         "transtype" -> JsString("html5"),
-        "params" -> JsObject(List.empty)
+        "params" -> JsObject(List.empty),
+        "priority" -> JsNumber(0),
+        "processing" -> JsString(now.toString),
+        "status" -> JsString("process")
       ))
 
-      route(app, FakeRequest(POST, "/api/v1/work").withJsonBody(query)).map(status) mustBe Some(NO_CONTENT)
+      route(app, FakeRequest(POST, "/api/v1/work")
+        .withJsonBody(query)
+        .withHeaders(AUTH_TOKEN_HEADER -> token)
+      ).map(status) mustBe Some(OK) // This should be NO_CONTENT
     }
 
     "return PDF job" in {
       val query = JsArray(List(
         JsString("pdf")
       ))
-      val home = route(app, FakeRequest(POST, "/api/v1/work").withJsonBody(query)).get
+      val home = route(app, FakeRequest(POST, "/api/v1/work")
+        .withJsonBody(query)
+        .withHeaders(AUTH_TOKEN_HEADER -> token)
+      ).get
 
       status(home) mustBe OK
       contentType(home) mustBe Some("application/json")
       contentAsJson(home) mustEqual JsObject(Map(
+        "created" -> JsString(now.toString),
+        "finished" -> JsNull,
         "id" -> JsString("id-B"),
         "input" -> JsString("file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap"),
-        "output" -> JsString("file:/Volumes/tmp/out"),
+        "output" -> JsString("file:/Volumes/tmp/out/"),
         "transtype" -> JsString("pdf"),
-        "params" -> JsObject(List.empty)
+        "params" -> JsObject(List.empty),
+        "priority" -> JsNumber(0),
+        "processing" -> JsString(now.toString),
+        "status" -> JsString("process")
       ))
     }
 
@@ -85,7 +143,10 @@ class WorkSpec extends PlaySpec with OneAppPerTest {
         JsString("xhtml")
       ))
 
-      val home = route(app, FakeRequest(POST, "/api/v1/work").withJsonBody(query)).get
+      val home = route(app, FakeRequest(POST, "/api/v1/work")
+        .withJsonBody(query)
+        .withHeaders(AUTH_TOKEN_HEADER -> token)
+      ).get
 
       val text = contentAsString(home)
 

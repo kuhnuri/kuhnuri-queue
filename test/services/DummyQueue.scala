@@ -1,14 +1,15 @@
 package services
 
-import java.time.LocalDateTime
-import javax.inject.Singleton
-
-import models._
+import java.time.{Clock, LocalDateTime}
+import javax.inject.{Inject, Singleton}
 
 import scala.collection.mutable
 
+import models._
+
 @Singleton
-class DummyQueue extends SimpleQueue {
+class DummyQueue @Inject()(clock: Clock) extends SimpleQueue(clock) {
+  private val now = LocalDateTime.now(clock)
   override val data: mutable.Map[String, Job] = mutable.Map(
     "id-A" -> Job("id-A",
       "file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap",
@@ -17,7 +18,10 @@ class DummyQueue extends SimpleQueue {
       Map.empty,
       StatusString.Queue,
       0,
-      LocalDateTime.now.minusHours(1), None, None),
+      now.minusHours(1),
+      None,
+      None
+    ),
     "id-A1" -> Job("id-A1",
       "file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap",
       "file:/Volumes/tmp/out/",
@@ -25,7 +29,10 @@ class DummyQueue extends SimpleQueue {
       Map.empty,
       StatusString.Queue,
       0,
-      LocalDateTime.now.minusHours(2), None, None),
+      now.minusHours(2),
+      None,
+      None
+    ),
     "id-B" -> Job("id-B",
       "file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap",
       "file:/Volumes/tmp/out/",
@@ -33,6 +40,9 @@ class DummyQueue extends SimpleQueue {
       Map.empty,
       StatusString.Queue,
       0,
-      LocalDateTime.now, None, None)
+      now,
+      None,
+      None
+    )
   )
 }

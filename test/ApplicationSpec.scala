@@ -1,8 +1,11 @@
+import java.time._
+
 import models.StatusString.Queue
 import org.scalatestplus.play._
+import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import play.api.inject.bind
 import play.api.inject.guice.GuiceApplicationBuilder
-import play.api.libs.json.{JsArray, JsObject, JsString, JsValue}
+import play.api.libs.json._
 import play.api.test.Helpers.{contentAsJson, contentType, _}
 import play.api.test._
 import services.{DummyQueue, Queue}
@@ -12,10 +15,16 @@ import services.{DummyQueue, Queue}
   * You can mock out a whole application including requests, plugins etc.
   * For more information, consult the wiki.
   */
-class ApplicationSpec extends PlaySpec with OneAppPerSuite {
+class ApplicationSpec extends PlaySpec with GuiceOneAppPerSuite {
+
+  private val clock: Clock = Clock.fixed(Instant.now(), ZoneOffset.UTC.normalized())
+  private val now = LocalDateTime.now(clock).atOffset(ZoneOffset.UTC)
 
   implicit override lazy val app = new GuiceApplicationBuilder()
-    .overrides(bind(classOf[Queue]).to(classOf[DummyQueue]))
+    .overrides(
+      bind(classOf[Queue]).to(classOf[DummyQueue]),
+      bind(classOf[Clock]).to(clock)
+    )
     //    .overrides(bind(classOf[Dispatcher]).to(classOf[DefaultDispatcher]))
     .build
 
@@ -41,26 +50,38 @@ class ApplicationSpec extends PlaySpec with OneAppPerSuite {
         JsObject(Map(
           "id" -> JsString("id-A"),
           "input" -> JsString("file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap"),
-          "output" -> JsString("file:/Volumes/tmp/out"),
+          "output" -> JsString("file:/Volumes/tmp/out/"),
           "transtype" -> JsString("html5"),
           "params" -> JsObject(List.empty),
-          "status" -> JsString("queue")
+          "status" -> JsString("queue"),
+          "priority" -> JsNumber(0),
+          "created" -> JsString(now.minusHours(1).toString),
+          "processing" -> JsNull,
+          "finished" -> JsNull
         )),
         JsObject(Map(
           "id" -> JsString("id-A1"),
           "input" -> JsString("file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap"),
-          "output" -> JsString("file:/Volumes/tmp/out"),
+          "output" -> JsString("file:/Volumes/tmp/out/"),
           "transtype" -> JsString("html5"),
           "params" -> JsObject(List.empty),
-          "status" -> JsString("queue")
+          "status" -> JsString("queue"),
+          "priority" -> JsNumber(0),
+          "created" -> JsString(now.minusHours(2).toString),
+          "processing" -> JsNull,
+          "finished" -> JsNull
         )),
         JsObject(Map(
           "id" -> JsString("id-B"),
           "input" -> JsString("file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap"),
-          "output" -> JsString("file:/Volumes/tmp/out"),
+          "output" -> JsString("file:/Volumes/tmp/out/"),
           "transtype" -> JsString("pdf"),
           "params" -> JsObject(List.empty),
-          "status" -> JsString("queue")
+          "status" -> JsString("queue"),
+          "priority" -> JsNumber(0),
+          "created" -> JsString(now.toString),
+          "processing" -> JsNull,
+          "finished" -> JsNull
         ))
       ))
     }
@@ -73,10 +94,14 @@ class ApplicationSpec extends PlaySpec with OneAppPerSuite {
       contentAsJson(home) mustEqual JsObject(Map(
         "id" -> JsString("id-B"),
         "input" -> JsString("file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap"),
-        "output" -> JsString("file:/Volumes/tmp/out"),
+        "output" -> JsString("file:/Volumes/tmp/out/"),
         "transtype" -> JsString("pdf"),
         "params" -> JsObject(List.empty),
-        "status" -> JsString("queue")
+        "status" -> JsString("queue"),
+        "priority" -> JsNumber(0),
+        "created" -> JsString(now.toString),
+        "processing" -> JsNull,
+        "finished" -> JsNull
       ))
     }
 

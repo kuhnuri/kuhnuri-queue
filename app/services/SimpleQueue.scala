@@ -1,15 +1,16 @@
 package services
 
-import java.time.{LocalDateTime, ZoneOffset}
-import javax.inject.Singleton
-
-import models._
-import play.api.Logger
+import java.time.{Clock, LocalDateTime, ZoneOffset}
+import javax.inject.{Inject, Singleton}
 
 import scala.collection.mutable
 
+import play.api.Logger
+
+import models._
+
 @Singleton
-class SimpleQueue extends Queue with Dispatcher {
+class SimpleQueue @Inject()(clock: Clock) extends Queue with Dispatcher {
 
   private val logger = Logger(this.getClass)
 
@@ -76,7 +77,7 @@ class SimpleQueue extends Queue with Dispatcher {
       .sortWith(compare)
       .find(j => transtypes.contains(j.transtype)) match {
       case Some(job) => {
-        val res = job.copy(status = StatusString.Process, processing = Some(LocalDateTime.now(ZoneOffset.UTC)))
+        val res = job.copy(status = StatusString.Process, processing = Some(LocalDateTime.now(clock)))
         data += res.id -> res
         Some(res)
       }
@@ -96,7 +97,7 @@ class SimpleQueue extends Queue with Dispatcher {
   override def submit(result: JobResult): Job = {
     data.get(result.job.id) match {
       case Some(job) => {
-        val res = job.copy(status = result.job.status, finished = Some(LocalDateTime.now(ZoneOffset.UTC)))
+        val res = job.copy(status = result.job.status, finished = Some(LocalDateTime.now(clock)))
         data += res.id -> res
         res
       }
