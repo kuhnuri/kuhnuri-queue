@@ -17,8 +17,6 @@ import scala.concurrent.Future
 @Singleton
 class WorkController @Inject()(dispatcher: Dispatcher, cc: ControllerComponents) extends AbstractController(cc) {
 
-  import controllers.v1.ListController._
-
   private val logger = Logger(this.getClass)
 
   def request = Action.async { request =>
