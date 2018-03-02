@@ -4,6 +4,27 @@ Kuhnuri Queue
 REST service for a DITA-OT processor queue. The queue persists the state of the queue into a database or keeps it only
 in memory depending on configuration.
 
+Buiding
+-------
+
+Compile the code:
+
+1. ```sbt compile```
+
+Running
+-------
+
+Running a development version:
+
+1.  ```sbt run```
+
+Deploying
+---------
+
+Build a distribution package:
+
+1.  ```sbt dist```
+
 Queue
 -----
 
