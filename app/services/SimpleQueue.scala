@@ -1,18 +1,23 @@
 package services
 
-import java.time.{Clock, LocalDateTime, ZoneOffset}
+import java.time.{Clock, Duration, LocalDateTime, ZoneOffset}
+
+import akka.actor.ActorSystem
 import javax.inject.{Inject, Singleton}
+import models._
+import play.api.{Configuration, Logger}
 
 import scala.collection.mutable
-
-import play.api.Logger
-
-import models._
+import scala.concurrent.ExecutionContext
+import scala.concurrent.duration._
 
 @Singleton
-class SimpleQueue @Inject()(clock: Clock) extends Queue with Dispatcher {
+class SimpleQueue @Inject()(configuration: Configuration,
+                            clock: Clock,
+                            actorSystem: ActorSystem)(implicit executionContext: ExecutionContext) extends Queue with Dispatcher {
 
   private val logger = Logger(this.getClass)
+  private val timeout = Duration.ofMillis(configuration.getMillis("queue.timeout"))
 
   val data: mutable.Map[String, Job] = mutable.Map(
 //    "id-A" -> Job("id-A",
@@ -40,6 +45,23 @@ class SimpleQueue @Inject()(clock: Clock) extends Queue with Dispatcher {
 //      0,
 //      LocalDateTime.now, None, None)
   )
+
+  actorSystem.scheduler.schedule(initialDelay = 0.microseconds, interval = 1.minutes) {
+    data.values
+      .filter { job =>
+        job.finished.isEmpty &&
+          job.processing
+            .map { dateTime =>
+              dateTime.plus(timeout).isBefore(LocalDateTime.now(clock))
+            }
+            .getOrElse(false)
+      }
+      .foreach { job =>
+        logger.info(s"Return ${job.id} back to queue")
+        val res = job.copy(status = StatusString.Queue, processing = Option.empty)
+        data += res.id -> res
+      }
+  }
 
   override def contents(): Seq[Job] =
     data.values.seq.toList.sortBy(_.created.toEpochSecond(ZoneOffset.UTC))
