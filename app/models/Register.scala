@@ -5,7 +5,7 @@ import java.net.{URI, URISyntaxException}
 import play.api.libs.functional.syntax._
 import play.api.libs.json._
 
-case class Register(id: String, uri: URI)
+case class Register(id: String, password: String, uri: URI)
 
 object Register {
 
@@ -22,6 +22,7 @@ object Register {
 
   implicit val registerReads: Reads[Register] = (
     (JsPath \ "id").read[String] and
+      (JsPath \ "password").read[String] and
       (JsPath \ "uri").read[URI]
     ) (Register.apply _)
 }
