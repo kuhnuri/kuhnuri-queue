@@ -16,6 +16,7 @@ libraryDependencies += "org.jooq" % "jooq" % "3.10.5"
 libraryDependencies += "org.jooq" % "jooq-codegen-maven" % "3.10.5"
 libraryDependencies += "org.jooq" % "jooq-meta" % "3.10.5"
 libraryDependencies += "org.scalatestplus.play" %% "scalatestplus-play" % "3.1.2" % "test"
+libraryDependencies += "org.mindrot" % "jbcrypt" % "0.4"
 
 val generateJOOQ = taskKey[Seq[File]]("Generate JooQ classes")
 generateJOOQ := {
