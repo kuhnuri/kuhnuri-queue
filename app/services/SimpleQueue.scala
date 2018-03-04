@@ -3,16 +3,20 @@ package services
 import java.time.{Clock, Duration, LocalDateTime, ZoneOffset}
 
 import akka.actor.ActorSystem
+import filters.TokenAuthorizationFilter.AUTH_TOKEN_HEADER
 import javax.inject.{Inject, Singleton}
 import models._
+import play.api.http.Status
+import play.api.libs.ws.WSClient
 import play.api.{Configuration, Logger}
 
 import scala.collection.mutable
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration._
 
 @Singleton
-class SimpleQueue @Inject()(configuration: Configuration,
+class SimpleQueue @Inject()(ws: WSClient,
+                            configuration: Configuration,
                             clock: Clock,
                             actorSystem: ActorSystem)(implicit executionContext: ExecutionContext) extends Queue with Dispatcher {
 
@@ -20,47 +24,93 @@ class SimpleQueue @Inject()(configuration: Configuration,
   private val timeout = Duration.ofMillis(configuration.getMillis("queue.timeout"))
 
   val data: mutable.Map[String, Job] = mutable.Map(
-//    "id-A" -> Job("id-A",
-//      "file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap",
-//      "file:/Volumes/tmp/out/",
-//      "html5",
-//      Map.empty,
-//      StatusString.Queue,
-//      0,
-//      LocalDateTime.now.minusHours(1), None, None),
-//    "id-A1" -> Job("id-A1",
-//      "file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap",
-//      "file:/Volumes/tmp/out/",
-//      "html5",
-//      Map.empty,
-//      StatusString.Queue,
-//      0,
-//      LocalDateTime.now.minusHours(2), None, None),
-//    "id-B" -> Job("id-B",
-//      "file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap",
-//      "file:/Volumes/tmp/out/",
-//      "pdf",
-//      Map.empty,
-//      StatusString.Queue,
-//      0,
-//      LocalDateTime.now, None, None)
+//        "id-A" -> Job("id-A",
+//          "file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap",
+//          "file:/Volumes/tmp/out/",
+//          "html5",
+//          Map.empty,
+//          StatusString.Queue,
+//          0,
+//          LocalDateTime.now(clock).minusHours(1),
+//          None,
+//          None),
+//        "id-A1" -> Job("id-A1",
+//          "file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap",
+//          "file:/Volumes/tmp/out/",
+//          "html5",
+//          Map.empty,
+//          StatusString.Queue,
+//          0,
+//          LocalDateTime.now(clock).minusHours(2),
+//          Some(LocalDateTime.now(clock).minusMinutes(30)),
+//          None),
+//        "id-B" -> Job("id-B",
+//          "file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap",
+//          "file:/Volumes/tmp/out/",
+//          "pdf",
+//          Map.empty,
+//          StatusString.Queue,
+//          0,
+//          LocalDateTime.now(clock).minusHours(2),
+//          Some(LocalDateTime.now(clock).minusMinutes(2)),
+//          None),
+//        "id-C" -> Job("id-C",
+//          "file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap",
+//          "file:/Volumes/tmp/out/",
+//          "pdf",
+//          Map.empty,
+//          StatusString.Queue,
+//          0,
+//          LocalDateTime.now(clock).minusHours(2),
+//          Some(LocalDateTime.now(clock).minusMinutes(30)),
+//          Some(LocalDateTime.now(clock).minusMinutes(1))),
+//        "id-D" -> Job("id-D",
+//          "file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap",
+//          "file:/Volumes/tmp/out/",
+//          "pdf",
+//          Map.empty,
+//          StatusString.Queue,
+//          0,
+//          LocalDateTime.now(clock),
+//          None,
+//          None)
   )
 
-  actorSystem.scheduler.schedule(initialDelay = 0.microseconds, interval = 1.minutes) {
+  actorSystem.scheduler.schedule(initialDelay = 10.seconds, interval = 1.minutes)(checkQueue)
+
+  private def checkQueue(): Unit = {
+//    logger.debug("Check stale jobs")
     data.values
-      .filter { job =>
-        job.finished.isEmpty &&
-          job.processing
-            .map { dateTime =>
-              dateTime.plus(timeout).isBefore(LocalDateTime.now(clock))
-            }
-            .getOrElse(false)
-      }
+      .filter(hasJobTimedOut)
       .foreach { job =>
         logger.info(s"Return ${job.id} back to queue")
         val res = job.copy(status = StatusString.Queue, processing = Option.empty)
         data += res.id -> res
       }
+  }
+
+  private def hasJobTimedOut(job: Job): Boolean = {
+    // Is being processed
+    if (job.processing.isDefined && job.finished.isEmpty) {
+      // Timeout has occurred
+      val now = LocalDateTime.now(clock)
+      if (job.processing.map(_.plus(timeout).isBefore(now)).get) {
+        // Worker cannot be contacted
+        // FIXME: Store worker ID to Job so we can support multiple workers
+        WorkerStore.workers.values.headOption.map { worker =>
+          val workerUri = worker.uri.resolve("api/v1/status")
+//          logger.debug(s"Check worker status: ${workerUri}")
+          val req: Future[Boolean] = ws.url(workerUri.toString)
+            .addHttpHeaders(AUTH_TOKEN_HEADER -> worker.token)
+            .withRequestTimeout(10000.millis)
+            .get()
+            .map(_.status == Status.OK)
+          val res: Boolean = Await.result(req, 10000.millis)
+          return !res
+        }
+      }
+    }
+    return false
   }
 
   override def contents(): Seq[Job] =
@@ -70,10 +120,6 @@ class SimpleQueue @Inject()(configuration: Configuration,
     data.get(id)
 
   override def log(id: String, offset: Int): Option[Seq[String]] = ???
-
-  //    data
-  //      .get(id)
-  //      .map(job => Job(id, job.input, job.output, job.transtype, job.params, StatusString.Queue))
 
   override def add(newJob: Create): Job = {
     val job = newJob.toJob
