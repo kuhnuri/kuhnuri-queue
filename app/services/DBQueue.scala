@@ -1,18 +1,24 @@
 package services
 
-import java.time._
+import java.time.{Clock, Duration, LocalDateTime, OffsetDateTime, ZoneOffset}
 import java.util.UUID
 
-import javax.inject.{Inject, Singleton}
+import akka.actor.ActorSystem
+import filters.TokenAuthorizationFilter.AUTH_TOKEN_HEADER
 import generated.Tables._
 import generated.enums.Status
+import javax.inject.{Inject, Singleton}
 import models._
+import org.jooq.exception.DataAccessException
 import org.jooq.impl.DSL
 import org.jooq.{Update => _, _}
-import play.api.Logger
 import play.api.db.Database
+import play.api.libs.ws.WSClient
+import play.api.{Configuration, Logger, http}
 
 import scala.collection.JavaConverters._
+import scala.concurrent.duration._
+import scala.concurrent.{Await, ExecutionContext, Future}
 
 /**
   * A database backed queue
@@ -21,9 +27,71 @@ import scala.collection.JavaConverters._
   * @param logStore conversion log store
   */
 @Singleton
-class DBQueue @Inject()(db: Database, logStore: LogStore, clock: Clock) extends Queue with Dispatcher {
+class DBQueue @Inject()(db: Database,
+                        logStore: LogStore,
+                        ws: WSClient,
+                        configuration: Configuration,
+                        clock: Clock,
+                        actorSystem: ActorSystem)(implicit executionContext: ExecutionContext) extends Queue with Dispatcher {
 
   private val logger = Logger(this.getClass)
+  private val timeout = Duration.ofMillis(configuration.getMillis("queue.timeout"))
+
+  actorSystem.scheduler.schedule(initialDelay = 10.seconds, interval = 1.minutes)(checkQueue)
+
+  private def checkQueue(): Unit = {
+    //    logger.debug("Check stale jobs")
+    db.withConnection { connection =>
+      val sql = DSL.using(connection, SQLDialect.POSTGRES_9_4)
+      val nowMinusTimout = LocalDateTime.now(clock).minus(timeout)
+      val nullTimestamp: OffsetDateTime = null
+      selectJob(sql)
+        .where(QUEUE.FINISHED.isNull
+          .and(QUEUE.PROCESSING.isNotNull)
+          .and(QUEUE.PROCESSING.lt(OffsetDateTime.of(nowMinusTimout, ZoneOffset.UTC)))
+        )
+        .fetch(Mappers.JobMapper)
+        .asScala
+        .filter { job => !pingWorker(job) }
+        .foreach { job =>
+          logger.info(s"Return ${job.id} back to queue")
+          try {
+            sql
+              .update(QUEUE)
+              .set(QUEUE.STATUS, Status.queue)
+              .set(QUEUE.PROCESSING, nullTimestamp)
+              .where(QUEUE.UUID.eq(job.id))
+              .execute()
+          } catch {
+            case e: DataAccessException =>
+              logger.error(s"Failed to return stale job to queue: ${e.getMessage}", e)
+          }
+        }
+    }
+  }
+
+  private def pingWorker(job: Job): Boolean = {
+    // FIXME: Store worker ID to Job so we can support multiple workers
+    WorkerStore.workers.values.headOption.map { worker =>
+      val workerUri = worker.uri.resolve("api/v1/status")
+      //          logger.debug(s"Check worker status: ${workerUri}")
+      val req: Future[Boolean] = ws.url(workerUri.toString)
+        .addHttpHeaders(AUTH_TOKEN_HEADER -> worker.token)
+        .withRequestTimeout(10000.millis)
+        .get()
+        .map(_.status == http.Status.OK)
+      val res: Boolean = Await.result(req, 10000.millis)
+      return res
+    }
+    return false
+  }
+
+  private def selectJob(sql: DSLContext): SelectJoinStep[Record9[String, String, String, String, Status, Integer, OffsetDateTime, OffsetDateTime, OffsetDateTime]] = {
+    sql
+      .select(QUEUE.UUID, QUEUE.INPUT, QUEUE.OUTPUT, QUEUE.TRANSTYPE, QUEUE.STATUS, QUEUE.PRIORITY,
+        QUEUE.CREATED, QUEUE.PROCESSING, QUEUE.FINISHED)
+      .from(QUEUE)
+  }
 
   override def contents(): Seq[Job] = {
     db.withConnection { connection =>
