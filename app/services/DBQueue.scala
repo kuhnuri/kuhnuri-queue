@@ -101,10 +101,7 @@ class DBQueue @Inject()(db: Database,
   override def contents(): Seq[Job] = {
     db.withConnection { connection =>
       val sql = DSL.using(connection, SQLDialect.POSTGRES_9_4)
-      val query = sql
-        .select(QUEUE.UUID, QUEUE.INPUT, QUEUE.OUTPUT, QUEUE.TRANSTYPE, QUEUE.STATUS, QUEUE.PRIORITY,
-          QUEUE.CREATED, QUEUE.PROCESSING, QUEUE.FINISHED)
-        .from(QUEUE)
+      val query = selectJob(sql)
         .orderBy(QUEUE.CREATED.desc)
       val res = query
         .fetch(Mappers.JobMapper)
@@ -116,10 +113,7 @@ class DBQueue @Inject()(db: Database,
   override def get(id: String): Option[Job] =
     db.withConnection { connection =>
       val sql = DSL.using(connection, SQLDialect.POSTGRES_9_4)
-      val query = sql
-        .select(QUEUE.UUID, QUEUE.INPUT, QUEUE.OUTPUT, QUEUE.TRANSTYPE, QUEUE.STATUS, QUEUE.PRIORITY,
-          QUEUE.CREATED, QUEUE.PROCESSING, QUEUE.FINISHED)
-        .from(QUEUE)
+      val query = selectJob(sql)
         .where(QUEUE.UUID.eq(id))
       val res = query
         .fetchOne(Mappers.JobMapper)
