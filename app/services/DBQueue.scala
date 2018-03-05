@@ -9,6 +9,7 @@ import generated.Tables._
 import generated.enums.Status
 import javax.inject.{Inject, Singleton}
 import models._
+import models.request.{Create, JobResult}
 import org.jooq.exception.DataAccessException
 import org.jooq.impl.DSL
 import org.jooq.{Update => _, _}

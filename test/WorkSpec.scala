@@ -2,8 +2,8 @@ import java.net.URI
 import java.time.{Clock, Instant, LocalDateTime, ZoneOffset}
 
 import filters.TokenAuthorizationFilter.AUTH_TOKEN_HEADER
-import models.Register
 import models.StatusString.Queue
+import models.request.Register
 import org.scalatest.TestData
 import org.scalatestplus.play._
 import play.api.Application

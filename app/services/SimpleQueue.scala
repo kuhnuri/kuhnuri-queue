@@ -6,6 +6,7 @@ import akka.actor.ActorSystem
 import filters.TokenAuthorizationFilter.AUTH_TOKEN_HEADER
 import javax.inject.{Inject, Singleton}
 import models._
+import models.request.{Create, JobResult}
 import play.api.http.Status
 import play.api.libs.ws.WSClient
 import play.api.{Configuration, Logger}

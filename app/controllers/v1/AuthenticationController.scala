@@ -5,6 +5,7 @@ import java.util.UUID
 import filters.TokenAuthorizationFilter._
 import javax.inject.Inject
 import models._
+import models.request.Register
 import org.mindrot.jbcrypt.BCrypt
 import play.api.libs.json.{JsError, JsSuccess}
 import play.api.mvc._

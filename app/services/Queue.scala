@@ -1,6 +1,7 @@
 package services
 
 import models._
+import models.request.Create
 
 trait Queue {
   def get(id: String): Option[Job]

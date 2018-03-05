@@ -1,4 +1,4 @@
-package models
+package models.request
 
 import java.net.{URI, URISyntaxException}
 

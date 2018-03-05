@@ -1,6 +1,7 @@
 package services
 
 import models._
+import models.request.JobResult
 
 /**
   * Communication interface for Workers.

@@ -1,8 +1,9 @@
-package models
+package models.request
 
 import java.time.{LocalDateTime, ZoneOffset}
 import java.util.UUID
 
+import models.{Job, StatusString}
 import play.api.libs.functional.syntax._
 import play.api.libs.json.Reads._
 import play.api.libs.json._
