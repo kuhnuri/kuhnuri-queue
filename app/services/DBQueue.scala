@@ -40,15 +40,15 @@ class DBQueue @Inject()(db: Database,
   actorSystem.scheduler.schedule(initialDelay = 10.seconds, interval = 1.minutes)(checkQueue)
 
   private def checkQueue(): Unit = {
-    //    logger.debug("Check stale jobs")
+    logger.debug("Check stale jobs")
     db.withConnection { connection =>
       val sql = DSL.using(connection, SQLDialect.POSTGRES_9_4)
-      val nowMinusTimout = LocalDateTime.now(clock).minus(timeout)
+      val nowMinusTimeout = getOffsetDateTime(LocalDateTime.now(clock).minus(timeout))
       val nullTimestamp: OffsetDateTime = null
       selectJob(sql)
         .where(QUEUE.FINISHED.isNull
           .and(QUEUE.PROCESSING.isNotNull)
-          .and(QUEUE.PROCESSING.lt(OffsetDateTime.of(nowMinusTimout, ZoneOffset.UTC)))
+          .and(QUEUE.PROCESSING.lt(nowMinusTimeout))
         )
         .fetch(Mappers.JobMapper)
         .asScala
@@ -68,6 +68,11 @@ class DBQueue @Inject()(db: Database,
           }
         }
     }
+  }
+
+  private def getOffsetDateTime(dateTime: LocalDateTime): OffsetDateTime = {
+    val offset = clock.getZone.getRules.getOffset(dateTime)
+    OffsetDateTime.of(dateTime, offset)
   }
 
   private def pingWorker(job: Job): Boolean = {
