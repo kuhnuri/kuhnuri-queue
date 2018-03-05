@@ -17,9 +17,17 @@ import play.api.libs.json._
   * @param params    DITA-OT parameters
   * @param status    status of the conversion
   */
-sealed case class Job(id: String, input: String, output: String, transtype: String,
-                      params: Map[String, String], status: StatusString, priority: Int,
-                      created: LocalDateTime, processing: Option[LocalDateTime], finished: Option[LocalDateTime])
+sealed case class Job(id: String,
+                      input: String,
+                      output: String,
+                      transtype: String,
+                      params: Map[String, String],
+                      status: StatusString,
+                      priority: Int,
+                      created: LocalDateTime,
+                      processing: Option[LocalDateTime],
+                      worker: Option[String],
+                      finished: Option[LocalDateTime])
 
 object Job {
 
@@ -46,6 +54,7 @@ object Job {
       (JsPath \ "priority").write[Int] and
       (JsPath \ "created").write[LocalDateTime] and
       (JsPath \ "processing").writeNullable[LocalDateTime] and
+      (JsPath \ "worker").writeNullable[String] and
       (JsPath \ "finished").writeNullable[LocalDateTime]
     ) (unlift(Job.unapply _))
   implicit val jobReads: Reads[Job] = (
@@ -60,6 +69,7 @@ object Job {
       (JsPath \ "priority").read[Int] and
       (JsPath \ "created").read[LocalDateTime] and
       (JsPath \ "processing").readNullable[LocalDateTime] and
+      (JsPath \ "worker").readNullable[String] and
       (JsPath \ "finished").readNullable[LocalDateTime]
     ) (Job.apply _)
 
