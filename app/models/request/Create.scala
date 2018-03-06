@@ -10,8 +10,17 @@ import play.api.libs.json._
 
 sealed case class Create(input: String, output: String, transtype: String, priority: Option[Int], params: Map[String, String]) {
   def toJob: Job =
-    Job(UUID.randomUUID().toString, this.input, this.output, this.transtype, this.params,
-      StatusString.Queue, priority.getOrElse(0), LocalDateTime.now(ZoneOffset.UTC), None, None)
+    Job(
+      UUID.randomUUID().toString,
+      this.input,
+      this.output,
+      this.transtype,
+      this.params,
+      StatusString.Queue, priority.getOrElse(0),
+      LocalDateTime.now(ZoneOffset.UTC),
+      None,
+      None,
+      None)
 }
 
 object Create {

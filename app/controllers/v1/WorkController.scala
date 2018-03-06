@@ -1,8 +1,8 @@
 package controllers.v1
 
 import javax.inject._
-import models._
 import models.request.JobResult
+import filters.TokenAuthorizationFilter.WORKER_ATTR
 import play.api.Logger
 import play.api.libs.json._
 import play.api.mvc._
@@ -20,18 +20,17 @@ class WorkController @Inject()(dispatcher: Dispatcher, cc: ControllerComponents)
   private val logger = Logger(this.getClass)
 
   def request = Action.async { request =>
-    //    request.headers.get(AUTH_TOKEN_HEADER) match {
-    //      case Some(token) if token == authToken => {
     logger.debug("request: " + request.body.asText)
     request.body.asJson.map { json =>
       json.validate[List[String]].map {
         case req: List[String] => {
+          val worker = request.attrs(WORKER_ATTR)
           logger.debug("Request work for " + req.mkString(", "))
           Future {
-            dispatcher.request(req)
+            dispatcher.request(req, worker)
           }.map {
             case Some(job) =>
-              logger.info(s"Submit work $job")
+              logger.info(s"Requested work $job")
               Ok(Json.toJson(job))
             case None => NoContent
           }
@@ -45,27 +44,32 @@ class WorkController @Inject()(dispatcher: Dispatcher, cc: ControllerComponents)
     }.getOrElse {
       Future(BadRequest("Expecting Json data"))
     }
-    //      }
-    //      case _ => Future(Unauthorized)
-    //    }
   }
 
   // FIXME this doesn't have to return anything, other than OK/NOK
   def submit = Action.async { request =>
-    //    request.headers.get(AUTH_TOKEN_HEADER) match {
-    //      case Some(token) if token == authToken => {
-    logger.debug("submit: " + request.body.asText)
+//    logger.debug("Submit work")
     request.body.asJson.map { json =>
-      logger.debug("submit: " + json.toString)
+//      logger.debug(" submit work " + json.toString())
       json.validate[JobResult].map {
         case res: JobResult => {
-          logger.debug("Submit work for " + res.job)
-          Future {
-            dispatcher.submit(res)
-          }.map {
-            case res => Ok(Json.toJson(res))
+//          logger.debug("  job result " + res)
+          val worker = request.attrs(WORKER_ATTR)
+          val submitter: String = res.job.worker.getOrElse(null)
+          if (submitter == worker.id) {
+//            logger.debug("Submit work for " + res.job)
+            Future {
+              dispatcher.submit(res)
+            }.map {
+              case res => Ok(Json.toJson(res))
+            }
+          } else {
+            logger.error(s"Tried to submit other's work: ${submitter} != ${worker.id}")
+            Future(Forbidden)
           }
         }
+        case _ =>
+          Future(InternalServerError)
       }.recoverTotal {
         e => {
           logger.error("Detected error B:" + JsError.toJson(e))
@@ -73,19 +77,7 @@ class WorkController @Inject()(dispatcher: Dispatcher, cc: ControllerComponents)
         }
       }
     }.getOrElse {
-      Future(BadRequest("Expecting Json data"))
+      Future(BadRequest("Expecting JSON data"))
     }
-    //      }
-    //      case _ => Future(Unauthorized)
-    //    }
   }
 }
-
-object WorkController {
-  //  implicit val jobRequestReads: Reads[JobRequest] = (
-  //
-  //  )(JobRequest.apply _)
-  //    Reads[JobRequest](a => a.as[List[String]])
-}
-
-//sealed case class JobRequest(transtypes: List[String])

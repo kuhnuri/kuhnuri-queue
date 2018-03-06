@@ -15,9 +15,10 @@ CREATE TABLE queue
   output     VARCHAR(256)                     NOT NULL,
   status     STATUS DEFAULT 'queue' :: STATUS NOT NULL,
   id         SERIAL                           NOT NULL,
-  priority   INTEGER DEFAULT 0                NOT NULL,
   processing TIMESTAMP WITH TIME ZONE,
-  finished   TIMESTAMP WITH TIME ZONE
+  finished   TIMESTAMP WITH TIME ZONE,
+  priority   INTEGER DEFAULT 0                NOT NULL,
+  worker     VARCHAR(256)
 );
 
 CREATE UNIQUE INDEX table_name_id_uindex

@@ -7,9 +7,8 @@ import filters.TokenAuthorizationFilter.AUTH_TOKEN_HEADER
 import javax.inject.{Inject, Singleton}
 import models._
 import models.request.{Create, JobResult}
-import play.api.http.Status
 import play.api.libs.ws.WSClient
-import play.api.{Configuration, Logger}
+import play.api.{Configuration, Logger, http}
 
 import scala.collection.mutable
 import scala.concurrent.{Await, ExecutionContext, Future}
@@ -34,7 +33,9 @@ class SimpleQueue @Inject()(ws: WSClient,
 //          0,
 //          LocalDateTime.now(clock).minusHours(1),
 //          None,
-//          None),
+//          None,
+//          None
+//        ),
 //        "id-A1" -> Job("id-A1",
 //          "file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap",
 //          "file:/Volumes/tmp/out/",
@@ -44,7 +45,9 @@ class SimpleQueue @Inject()(ws: WSClient,
 //          0,
 //          LocalDateTime.now(clock).minusHours(2),
 //          Some(LocalDateTime.now(clock).minusMinutes(30)),
-//          None),
+//          Some("A"),
+//          None
+//        ),
 //        "id-B" -> Job("id-B",
 //          "file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap",
 //          "file:/Volumes/tmp/out/",
@@ -54,7 +57,9 @@ class SimpleQueue @Inject()(ws: WSClient,
 //          0,
 //          LocalDateTime.now(clock).minusHours(2),
 //          Some(LocalDateTime.now(clock).minusMinutes(2)),
-//          None),
+//          Some("A"),
+//          None
+//        ),
 //        "id-C" -> Job("id-C",
 //          "file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap",
 //          "file:/Volumes/tmp/out/",
@@ -64,7 +69,9 @@ class SimpleQueue @Inject()(ws: WSClient,
 //          0,
 //          LocalDateTime.now(clock).minusHours(2),
 //          Some(LocalDateTime.now(clock).minusMinutes(30)),
-//          Some(LocalDateTime.now(clock).minusMinutes(1))),
+//          Some("A"),
+//          Some(LocalDateTime.now(clock).minusMinutes(1))
+//        ),
 //        "id-D" -> Job("id-D",
 //          "file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap",
 //          "file:/Volumes/tmp/out/",
@@ -74,7 +81,9 @@ class SimpleQueue @Inject()(ws: WSClient,
 //          0,
 //          LocalDateTime.now(clock),
 //          None,
-//          None)
+//          None,
+//          None
+//        )
   )
 
   actorSystem.scheduler.schedule(initialDelay = 10.seconds, interval = 1.minutes)(checkQueue)
@@ -85,7 +94,11 @@ class SimpleQueue @Inject()(ws: WSClient,
       .filter(hasJobTimedOut)
       .foreach { job =>
         logger.info(s"Return ${job.id} back to queue")
-        val res = job.copy(status = StatusString.Queue, processing = Option.empty)
+        val res = job.copy(
+          status = StatusString.Queue,
+          processing = Option.empty,
+          worker = Option.empty
+        )
         data += res.id -> res
       }
   }
@@ -97,19 +110,23 @@ class SimpleQueue @Inject()(ws: WSClient,
       val now = LocalDateTime.now(clock)
       if (job.processing.map(_.plus(timeout).isBefore(now)).get) {
         // Worker cannot be contacted
-        // FIXME: Store worker ID to Job so we can support multiple workers
-        WorkerStore.workers.values.headOption.map { worker =>
-          val workerUri = worker.uri.resolve("api/v1/status")
-//          logger.debug(s"Check worker status: ${workerUri}")
-          val req: Future[Boolean] = ws.url(workerUri.toString)
-            .addHttpHeaders(AUTH_TOKEN_HEADER -> worker.token)
-            .withRequestTimeout(10000.millis)
-            .get()
-            .map(_.status == Status.OK)
-          val res: Boolean = Await.result(req, 10000.millis)
-          return !res
-        }
+        !pingWorker(job)
       }
+    }
+    return false
+  }
+
+  private def pingWorker(job: Job): Boolean = {
+    WorkerStore.workers.get(job.worker.get).map { worker =>
+      val workerUri = worker.uri.resolve("api/v1/status")
+//      logger.debug(s"Check worker status: ${workerUri}")
+      val req: Future[Boolean] = ws.url(workerUri.toString)
+        .addHttpHeaders(AUTH_TOKEN_HEADER -> worker.token)
+        .withRequestTimeout(10000.millis)
+        .get()
+        .map(_.status == http.Status.OK)
+      val res: Boolean = Await.result(req, 10000.millis)
+      return res
     }
     return false
   }
@@ -139,14 +156,18 @@ class SimpleQueue @Inject()(ws: WSClient,
     }
   }
 
-  override def request(transtypes: List[String]): Option[Job] = {
+  override def request(transtypes: List[String], worker: Worker): Option[Job] = {
     data.values
       .filter(j => j.status == StatusString.Queue)
       .toList
       .sortWith(compare)
       .find(j => transtypes.contains(j.transtype)) match {
       case Some(job) => {
-        val res = job.copy(status = StatusString.Process, processing = Some(LocalDateTime.now(clock)))
+        val res = job.copy(
+          status = StatusString.Process,
+          processing = Some(LocalDateTime.now(clock)),
+          worker = Some(worker.id)
+        )
         data += res.id -> res
         Some(res)
       }
@@ -164,9 +185,14 @@ class SimpleQueue @Inject()(ws: WSClient,
 
   // FIXME this should return a Try or Option
   override def submit(result: JobResult): Job = {
+    logger.info(s"Submit ${result.job.id}")
     data.get(result.job.id) match {
       case Some(job) => {
-        val res = job.copy(status = result.job.status, finished = Some(LocalDateTime.now(clock)))
+        val res = job.copy(
+          status = result.job.status,
+          finished = Some(LocalDateTime.now(clock))
+        )
+        logger.info(s" save ${res}")
         data += res.id -> res
         res
       }

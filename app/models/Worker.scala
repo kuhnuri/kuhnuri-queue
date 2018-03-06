@@ -2,7 +2,7 @@ package models
 
 import java.net.URI
 
-import models.Register.uriReads
+import models.request.Register.uriReads
 import play.api.libs.functional.syntax._
 import play.api.libs.json._
 

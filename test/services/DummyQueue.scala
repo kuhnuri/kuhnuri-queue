@@ -29,6 +29,7 @@ class DummyQueue @Inject()(ws: WSClient,
       0,
       now.minusHours(1),
       None,
+      None,
       None
     ),
     "id-A1" -> Job("id-A1",
@@ -40,6 +41,7 @@ class DummyQueue @Inject()(ws: WSClient,
       0,
       now.minusHours(2),
       None,
+      None,
       None
     ),
     "id-B" -> Job("id-B",
@@ -50,6 +52,7 @@ class DummyQueue @Inject()(ws: WSClient,
       StatusString.Queue,
       0,
       now,
+      None,
       None,
       None
     )

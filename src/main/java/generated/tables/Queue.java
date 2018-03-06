@@ -40,7 +40,7 @@ import org.jooq.impl.TableImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Queue extends TableImpl<QueueRecord> {
 
-    private static final long serialVersionUID = 661119271;
+    private static final long serialVersionUID = 2147313196;
 
     /**
      * The reference instance of <code>public.queue</code>
@@ -104,6 +104,11 @@ public class Queue extends TableImpl<QueueRecord> {
      * The column <code>public.queue.priority</code>.
      */
     public final TableField<QueueRecord, Integer> PRIORITY = createField("priority", org.jooq.impl.SQLDataType.INTEGER.nullable(false).defaultValue(org.jooq.impl.DSL.field("0", org.jooq.impl.SQLDataType.INTEGER)), this, "");
+
+    /**
+     * The column <code>public.queue.worker</code>.
+     */
+    public final TableField<QueueRecord, String> WORKER = createField("worker", org.jooq.impl.SQLDataType.VARCHAR(256), this, "");
 
     /**
      * Create a <code>public.queue</code> table reference

@@ -46,6 +46,7 @@ class DBQueue @Inject()(db: Database,
       val sql = DSL.using(connection, SQLDialect.POSTGRES_9_4)
       val nowMinusTimeout = getOffsetDateTime(LocalDateTime.now(clock).minus(timeout))
       val nullTimestamp: OffsetDateTime = null
+      val nullString: String = null
       selectJob(sql)
         .where(QUEUE.FINISHED.isNull
           .and(QUEUE.PROCESSING.isNotNull)
@@ -61,6 +62,7 @@ class DBQueue @Inject()(db: Database,
               .update(QUEUE)
               .set(QUEUE.STATUS, Status.queue)
               .set(QUEUE.PROCESSING, nullTimestamp)
+              .set(QUEUE.WORKER, nullString)
               .where(QUEUE.UUID.eq(job.id))
               .execute()
           } catch {
@@ -77,10 +79,9 @@ class DBQueue @Inject()(db: Database,
   }
 
   private def pingWorker(job: Job): Boolean = {
-    // FIXME: Store worker ID to Job so we can support multiple workers
-    WorkerStore.workers.values.headOption.map { worker =>
+    WorkerStore.workers.get(job.worker.get).map { worker =>
       val workerUri = worker.uri.resolve("api/v1/status")
-      //          logger.debug(s"Check worker status: ${workerUri}")
+//      logger.debug(s"Check worker status: ${workerUri}")
       val req: Future[Boolean] = ws.url(workerUri.toString)
         .addHttpHeaders(AUTH_TOKEN_HEADER -> worker.token)
         .withRequestTimeout(10000.millis)
@@ -92,10 +93,10 @@ class DBQueue @Inject()(db: Database,
     return false
   }
 
-  private def selectJob(sql: DSLContext): SelectJoinStep[Record9[String, String, String, String, Status, Integer, OffsetDateTime, OffsetDateTime, OffsetDateTime]] = {
+  private def selectJob(sql: DSLContext): SelectJoinStep[Record10[String, String, String, String, Status, Integer, OffsetDateTime, OffsetDateTime, String, OffsetDateTime]] = {
     sql
       .select(QUEUE.UUID, QUEUE.INPUT, QUEUE.OUTPUT, QUEUE.TRANSTYPE, QUEUE.STATUS, QUEUE.PRIORITY,
-        QUEUE.CREATED, QUEUE.PROCESSING, QUEUE.FINISHED)
+        QUEUE.CREATED, QUEUE.PROCESSING, QUEUE.WORKER,  QUEUE.FINISHED)
       .from(QUEUE)
   }
 
@@ -126,7 +127,7 @@ class DBQueue @Inject()(db: Database,
 
   override def add(job: Create): Job = {
     db.withConnection { connection =>
-      val created = LocalDateTime.now(ZoneOffset.UTC)
+      val created = LocalDateTime.now(clock)
       val sql = DSL.using(connection, SQLDialect.POSTGRES_9_4)
       val query = sql
         .insertInto(QUEUE,
@@ -136,8 +137,18 @@ class DBQueue @Inject()(db: Database,
       val res = query
         .returning(QUEUE.UUID, QUEUE.STATUS)
         .fetchOne()
-      Job(res.getUuid, job.input, job.output, job.transtype, Map.empty, StatusString.parse(res.getStatus),
-        job.priority.getOrElse(0), created, None, None)
+      Job(
+        res.getUuid,
+        job.input,
+        job.output,
+        job.transtype,
+        Map.empty,
+        StatusString.parse(res.getStatus),
+        job.priority.getOrElse(0),
+        created,
+        None,
+        None,
+        None)
     }
   }
 
@@ -145,7 +156,7 @@ class DBQueue @Inject()(db: Database,
     db.withConnection { connection =>
       logger.info("update")
       val sql = DSL.using(connection, SQLDialect.POSTGRES_9_4)
-      val now = OffsetDateTime.now()
+      val now = OffsetDateTime.now(clock)
       val query = sql
         .update(QUEUE)
         .set(QUEUE.STATUS, Status.valueOf(update.status.get.toString))
@@ -163,15 +174,16 @@ class DBQueue @Inject()(db: Database,
     }
   }
 
-  override def request(transtypes: List[String]): Option[Job] =
+  override def request(transtypes: List[String], worker: Worker): Option[Job] =
     db.withConnection { connection =>
       logger.debug("Request work for transtypes " + transtypes.mkString(", "))
       val sql = DSL.using(connection, SQLDialect.POSTGRES_9_4)
-      val now = OffsetDateTime.now()
+      val now = OffsetDateTime.now(clock)
       val query = sql
         .update(QUEUE)
         .set(QUEUE.STATUS, Status.process)
         .set(QUEUE.PROCESSING, now)
+        .set(QUEUE.WORKER, worker.id)
         .where(QUEUE.UUID.in(
           sql.select(QUEUE.UUID)
             .from(QUEUE)
@@ -185,9 +197,21 @@ class DBQueue @Inject()(db: Database,
       logger.debug(s"Request got back ${query}")
       res match {
         case null => None
-        case res => Some(Job(res.getUuid, res.getInput, res.getOutput,
-          res.getTranstype, Map.empty, StatusString.parse(res.getStatus), res.getPriority.intValue(),
-          res.getCreated.toLocalDateTime, Some(res.getProcessing.toLocalDateTime), Some(res.getFinished.toLocalDateTime)))
+        case res =>
+          val job = Job(
+            res.getUuid,
+            res.getInput,
+            res.getOutput,
+            res.getTranstype,
+            Map.empty,
+            StatusString.parse(res.getStatus),
+            res.getPriority.intValue(),
+            res.getCreated.toLocalDateTime,
+            Some(res.getProcessing.toLocalDateTime),
+            Some(worker.id),
+            None//Some(res.getFinished.toLocalDateTime)
+          )
+          Some(job)
       }
     }
 
@@ -196,7 +220,7 @@ class DBQueue @Inject()(db: Database,
     db.withConnection { connection =>
       //      logger.info(s"Submit $res")
       val sql = DSL.using(connection, SQLDialect.POSTGRES_9_4)
-      val now = OffsetDateTime.now()
+      val now = OffsetDateTime.now(clock)
       sql
         .update(QUEUE)
         .set(QUEUE.STATUS, Status.valueOf(res.job.status.toString))
@@ -212,9 +236,9 @@ private object Mappers {
   type ReviewStatus = String
   type CommentError = String
 
-  object JobMapper extends RecordMapper[Record9[String, String, String, String, Status, Integer, OffsetDateTime, OffsetDateTime, OffsetDateTime], Job] {
+  object JobMapper extends RecordMapper[Record10[String, String, String, String, Status, Integer, OffsetDateTime, OffsetDateTime, String, OffsetDateTime], Job] {
     @Override
-    def map(c: Record9[String, String, String, String, Status, Integer, OffsetDateTime, OffsetDateTime, OffsetDateTime]): Job = {
+    def map(c: Record10[String, String, String, String, Status, Integer, OffsetDateTime, OffsetDateTime, String, OffsetDateTime]): Job = {
       Job(
         c.value1,
         c.value2,
@@ -225,7 +249,8 @@ private object Mappers {
         c.value6,
         c.value7.toLocalDateTime,
         Option(c.value8).map(_.toLocalDateTime),
-        Option(c.value9).map(_.toLocalDateTime)
+        Option(c.value9),
+        Option(c.value10).map(_.toLocalDateTime)
       )
     }
   }
