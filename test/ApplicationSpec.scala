@@ -1,6 +1,5 @@
 import java.time._
 
-import models.StatusString.Queue
 import org.scalatestplus.play._
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import play.api.inject.bind
@@ -20,7 +19,15 @@ class ApplicationSpec extends PlaySpec with GuiceOneAppPerSuite {
   private val clock: Clock = Clock.fixed(Instant.now(), ZoneOffset.UTC.normalized())
   private val now = LocalDateTime.now(clock).atOffset(ZoneOffset.UTC)
 
+
   implicit override lazy val app = new GuiceApplicationBuilder()
+    .configure(Map(
+      "queue.timeout" -> "10m",
+      "queue.users" -> List(Map(
+        "username" -> "worker",
+        "hash" -> "$2a$10$c.9YXZkSrElx2dz8udP8vOlZSfF/ftsf4EClIORt8ILWd8vciLING"
+      ))
+    ))
     .overrides(
       bind(classOf[Queue]).to(classOf[DummyQueue]),
       bind(classOf[Clock]).to(clock)
@@ -55,9 +62,9 @@ class ApplicationSpec extends PlaySpec with GuiceOneAppPerSuite {
           "params" -> JsObject(List.empty),
           "status" -> JsString("queue"),
           "priority" -> JsNumber(0),
-          "created" -> JsString(now.minusHours(1).toString),
-          "processing" -> JsNull,
-          "finished" -> JsNull
+          "created" -> JsString(now.minusHours(1).toString)
+//          "processing" -> JsNull,
+//          "finished" -> JsNull
         )),
         JsObject(Map(
           "id" -> JsString("id-A1"),
@@ -67,9 +74,9 @@ class ApplicationSpec extends PlaySpec with GuiceOneAppPerSuite {
           "params" -> JsObject(List.empty),
           "status" -> JsString("queue"),
           "priority" -> JsNumber(0),
-          "created" -> JsString(now.minusHours(2).toString),
-          "processing" -> JsNull,
-          "finished" -> JsNull
+          "created" -> JsString(now.minusHours(2).toString)
+//          "processing" -> JsNull,
+//          "finished" -> JsNull
         )),
         JsObject(Map(
           "id" -> JsString("id-B"),
@@ -79,9 +86,9 @@ class ApplicationSpec extends PlaySpec with GuiceOneAppPerSuite {
           "params" -> JsObject(List.empty),
           "status" -> JsString("queue"),
           "priority" -> JsNumber(0),
-          "created" -> JsString(now.toString),
-          "processing" -> JsNull,
-          "finished" -> JsNull
+          "created" -> JsString(now.toString)
+//          "processing" -> JsNull,
+//          "finished" -> JsNull
         ))
       ))
     }
@@ -99,9 +106,9 @@ class ApplicationSpec extends PlaySpec with GuiceOneAppPerSuite {
         "params" -> JsObject(List.empty),
         "status" -> JsString("queue"),
         "priority" -> JsNumber(0),
-        "created" -> JsString(now.toString),
-        "processing" -> JsNull,
-        "finished" -> JsNull
+        "created" -> JsString(now.toString)
+//        "processing" -> JsNull,
+//        "finished" -> JsNull
       ))
     }
 

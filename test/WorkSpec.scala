@@ -1,9 +1,6 @@
-import java.net.URI
 import java.time.{Clock, Instant, LocalDateTime, ZoneOffset}
 
 import filters.TokenAuthorizationFilter.AUTH_TOKEN_HEADER
-import models.StatusString.Queue
-import models.request.Register
 import org.scalatest.TestData
 import org.scalatestplus.play._
 import play.api.Application
@@ -12,7 +9,7 @@ import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.libs.json._
 import play.api.test.Helpers.{contentAsJson, contentType, _}
 import play.api.test._
-import services.{Dispatcher, DummyQueue, Queue}
+import services.{Dispatcher, DummyQueue}
 
 /**
   * Add your spec here.
@@ -24,22 +21,19 @@ class WorkSpec extends PlaySpec with OneAppPerTest {
   private val clock: Clock = Clock.fixed(Instant.now(), ZoneOffset.UTC.normalized())
   private val now = LocalDateTime.now(clock).atOffset(ZoneOffset.UTC)
 
-  implicit override def newAppForTest(testData: TestData): Application =  new GuiceApplicationBuilder()
-//    .configure(Map("ehcacheplugin" -> "disabled"))
+  implicit override def newAppForTest(testData: TestData): Application = new GuiceApplicationBuilder()
+    .configure(Map(
+      "queue.timeout" -> "10m",
+      "queue.users" -> List(Map(
+        "username" -> "worker",
+        "hash" -> "$2a$10$c.9YXZkSrElx2dz8udP8vOlZSfF/ftsf4EClIORt8ILWd8vciLING"
+      ))
+    ))
     .overrides(
       bind(classOf[Dispatcher]).to(classOf[DummyQueue]),
       bind(classOf[Clock]).to(clock)
     )
     .build()
-
-//  implicit override lazy val app = new GuiceApplicationBuilder()
-//    .overrides(bind(classOf[Queue]).to(classOf[DummyQueue]))
-////    .overrides(bind(classOf[Dispatcher]).to(classOf[DefaultDispatcher]))
-//    .build
-
-//  def sortById(arr: JsValue): JsArray = {
-//    JsArray(arr.as[JsArray].value.toList.sortBy(v => (v \ "id").get.as[JsString].value))
-//  }
 
   "WorkController" should {
 
@@ -47,7 +41,8 @@ class WorkSpec extends PlaySpec with OneAppPerTest {
 
     "accept registration" in {
       val query = JsObject(Map(
-        "id" -> JsString("foo"),
+        "id" -> JsString("worker"),
+        "password" -> JsString("password"),
         "uri" -> JsString("http://example.com/")
       ))
       val registration = route(app, FakeRequest(POST, "/api/v1/login")
@@ -71,7 +66,7 @@ class WorkSpec extends PlaySpec with OneAppPerTest {
       contentType(first) mustBe Some("application/json")
       contentAsJson(first) mustEqual JsObject(Map(
         "created" -> JsString(now.minusHours(2).toString),
-        "finished" -> JsNull,
+        //        "finished" -> JsNull,
         "id" -> JsString("id-A1"),
         "input" -> JsString("file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap"),
         "output" -> JsString("file:/Volumes/tmp/out/"),
@@ -79,6 +74,7 @@ class WorkSpec extends PlaySpec with OneAppPerTest {
         "params" -> JsObject(List.empty),
         "priority" -> JsNumber(0),
         "processing" -> JsString(now.toString),
+        "worker" -> JsString("worker"),
         "status" -> JsString("process")
       ))
     }
@@ -96,7 +92,7 @@ class WorkSpec extends PlaySpec with OneAppPerTest {
       contentType(second) mustBe Some("application/json")
       contentAsJson(second) mustEqual JsObject(Map(
         "created" -> JsString(now.minusHours(2).toString),
-        "finished" -> JsNull,
+        //        "finished" -> JsNull,
         "id" -> JsString("id-A1"),
         "input" -> JsString("file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap"),
         "output" -> JsString("file:/Volumes/tmp/out/"),
@@ -104,6 +100,7 @@ class WorkSpec extends PlaySpec with OneAppPerTest {
         "params" -> JsObject(List.empty),
         "priority" -> JsNumber(0),
         "processing" -> JsString(now.toString),
+        "worker" -> JsString("worker"),
         "status" -> JsString("process")
       ))
 
@@ -126,7 +123,7 @@ class WorkSpec extends PlaySpec with OneAppPerTest {
       contentType(home) mustBe Some("application/json")
       contentAsJson(home) mustEqual JsObject(Map(
         "created" -> JsString(now.toString),
-        "finished" -> JsNull,
+        //        "finished" -> JsNull,
         "id" -> JsString("id-B"),
         "input" -> JsString("file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap"),
         "output" -> JsString("file:/Volumes/tmp/out/"),
@@ -134,6 +131,7 @@ class WorkSpec extends PlaySpec with OneAppPerTest {
         "params" -> JsObject(List.empty),
         "priority" -> JsNumber(0),
         "processing" -> JsString(now.toString),
+        "worker" -> JsString("worker"),
         "status" -> JsString("process")
       ))
     }
@@ -154,72 +152,72 @@ class WorkSpec extends PlaySpec with OneAppPerTest {
     }
   }
 
-//  "ListController" should {
-//
-//    "list jobs" in {
-//      val home = route(app, FakeRequest(GET, "/api/v1/jobs")).get
-//
-//      status(home) mustBe OK
-//      contentType(home) mustBe Some("application/json")
-//      sortById(contentAsJson(home)) mustEqual JsArray(Seq(
-//        JsObject(Map(
-//          "id" -> JsString("id-A"),
-//          "input" -> JsString("file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap"),
-//          "output" -> JsString("file:/Volumes/tmp/out"),
-//          "transtype" -> JsString("html5"),
-//          "params" -> JsObject(List.empty)
-//        )),
-//        JsObject(Map(
-//          "id" -> JsString("id-B"),
-//          "input" -> JsString("file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap"),
-//          "output" -> JsString("file:/Volumes/tmp/out"),
-//          "transtype" -> JsString("pdf"),
-//          "params" -> JsObject(List.empty)
-//        )
-//        )))
-//    }
-//
-//    "show job details" in {
-//      val home = route(app, FakeRequest(GET, "/api/v1/job/id-B")).get
-//
-//      status(home) mustBe OK
-//      contentType(home) mustBe Some("application/json")
-//      contentAsJson(home) mustEqual JsObject(Map(
-//        "id" -> JsString("id-B"),
-//        "output" -> JsString("file:/Volumes/tmp/out"),
-//        "status" -> JsString(Queue.toString)
-//      ))
-//    }
-//
-//    "send 404 on a missing job" in {
-//      route(app, FakeRequest(GET, "/api/v1/job/X")).map(status(_)) mustBe Some(NOT_FOUND)
-//    }
-//
-//    "add new job" should {
-//
-//      "add" in {
-//        val body = JsObject(Map(
-//          "input" -> JsString("file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap"),
-//          "output" -> JsString("file:/Volumes/tmp/out"),
-//          "transtype" -> JsString("html5"),
-//          "params" -> JsObject(List.empty)
-//        ))
-//        val created = route(app, FakeRequest(POST, "/api/v1/job").withJsonBody(body)).get
-//
-//        status(created) mustBe CREATED
-//        contentType(created) mustBe Some("application/json")
-//        //        contentAsJson(created) mustEqual JsObject(Map(
-//        //            "id" -> JsString("id-A"),
-//        //            "input" -> JsString("file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap"),
-//        //            "output" -> JsString("file:/Volumes/tmp/out"),
-//        //            "transtype" -> JsString("html5"),
-//        //            "params" -> JsObject(List.empty)
-//        //          ))
-//
-//        val res = route(app, FakeRequest(GET, "/api/v1/jobs")).map(contentAsJson(_)).get.as[JsArray]
-//        res.value.size mustBe 3
-//      }
-//    }
-//  }
+  //  "ListController" should {
+  //
+  //    "list jobs" in {
+  //      val home = route(app, FakeRequest(GET, "/api/v1/jobs")).get
+  //
+  //      status(home) mustBe OK
+  //      contentType(home) mustBe Some("application/json")
+  //      sortById(contentAsJson(home)) mustEqual JsArray(Seq(
+  //        JsObject(Map(
+  //          "id" -> JsString("id-A"),
+  //          "input" -> JsString("file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap"),
+  //          "output" -> JsString("file:/Volumes/tmp/out"),
+  //          "transtype" -> JsString("html5"),
+  //          "params" -> JsObject(List.empty)
+  //        )),
+  //        JsObject(Map(
+  //          "id" -> JsString("id-B"),
+  //          "input" -> JsString("file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap"),
+  //          "output" -> JsString("file:/Volumes/tmp/out"),
+  //          "transtype" -> JsString("pdf"),
+  //          "params" -> JsObject(List.empty)
+  //        )
+  //        )))
+  //    }
+  //
+  //    "show job details" in {
+  //      val home = route(app, FakeRequest(GET, "/api/v1/job/id-B")).get
+  //
+  //      status(home) mustBe OK
+  //      contentType(home) mustBe Some("application/json")
+  //      contentAsJson(home) mustEqual JsObject(Map(
+  //        "id" -> JsString("id-B"),
+  //        "output" -> JsString("file:/Volumes/tmp/out"),
+  //        "status" -> JsString(Queue.toString)
+  //      ))
+  //    }
+  //
+  //    "send 404 on a missing job" in {
+  //      route(app, FakeRequest(GET, "/api/v1/job/X")).map(status(_)) mustBe Some(NOT_FOUND)
+  //    }
+  //
+  //    "add new job" should {
+  //
+  //      "add" in {
+  //        val body = JsObject(Map(
+  //          "input" -> JsString("file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap"),
+  //          "output" -> JsString("file:/Volumes/tmp/out"),
+  //          "transtype" -> JsString("html5"),
+  //          "params" -> JsObject(List.empty)
+  //        ))
+  //        val created = route(app, FakeRequest(POST, "/api/v1/job").withJsonBody(body)).get
+  //
+  //        status(created) mustBe CREATED
+  //        contentType(created) mustBe Some("application/json")
+  //        //        contentAsJson(created) mustEqual JsObject(Map(
+  //        //            "id" -> JsString("id-A"),
+  //        //            "input" -> JsString("file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap"),
+  //        //            "output" -> JsString("file:/Volumes/tmp/out"),
+  //        //            "transtype" -> JsString("html5"),
+  //        //            "params" -> JsObject(List.empty)
+  //        //          ))
+  //
+  //        val res = route(app, FakeRequest(GET, "/api/v1/jobs")).map(contentAsJson(_)).get.as[JsArray]
+  //        res.value.size mustBe 3
+  //      }
+  //    }
+  //  }
 
 }
