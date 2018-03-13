@@ -24,7 +24,6 @@ class AuthenticationController @Inject()(configuration: Configuration,
     .map(user => user.get[String]("username") -> user.get[String]("hash"))
     .toMap
 
-  // FIXME check password to verify worker is authorized
   def login = Action.async { request =>
     request.body.asJson.map { json =>
       json.validate[Register] match {
@@ -40,6 +39,7 @@ class AuthenticationController @Inject()(configuration: Configuration,
         case e: JsError => Future(BadRequest("Detected error :" + JsError.toJson(e).toString))
       }
     }.getOrElse {
+      logger.error("Expected JSON data")
       Future(BadRequest("Expecting Json data"))
     }
   }
@@ -47,9 +47,11 @@ class AuthenticationController @Inject()(configuration: Configuration,
   private def register(reg: Register): Try[String] = {
     val hash: Option[String] = users.get(reg.id)
     if (hash.isEmpty) {
+      logger.error("No user found " + reg.id)
       return Failure(new UnauthorizedException)
     }
     if (!BCrypt.checkpw(reg.password, hash.get)) {
+      logger.error("Password doesn't match " + reg.password + " " + hash.get)
       return Failure(new UnauthorizedException)
     }
     val worker = Worker(UUID.randomUUID().toString, reg.id, reg.uri)
