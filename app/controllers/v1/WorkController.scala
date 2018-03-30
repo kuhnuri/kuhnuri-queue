@@ -55,7 +55,7 @@ class WorkController @Inject()(dispatcher: Dispatcher, cc: ControllerComponents)
         case res: JobResult => {
 //          logger.debug("  job result " + res)
           val worker = request.attrs(WORKER_ATTR)
-          val submitter: String = res.job.worker.getOrElse(null)
+          val submitter: String = res.task.worker.getOrElse(null)
           if (submitter == worker.id) {
 //            logger.debug("Submit work for " + res.job)
             Future {

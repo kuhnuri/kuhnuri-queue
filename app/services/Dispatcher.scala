@@ -7,13 +7,14 @@ import models.request.JobResult
   * Communication interface for Workers.
   */
 trait Dispatcher {
+
   /**
     * Request work
     *
     * @param transtypes list of transtypes worker support
     * @return job to perform
     */
-  def request(transtypes: List[String], worker: Worker): Option[Job]
+  def request(transtypes: List[String], worker: Worker): Option[Task]
 
   /**
     * Submit work results

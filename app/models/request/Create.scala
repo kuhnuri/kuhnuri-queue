@@ -3,24 +3,36 @@ package models.request
 import java.time.{LocalDateTime, ZoneOffset}
 import java.util.UUID
 
-import models.{Job, StatusString}
+import models.{Job, StatusString, Task}
 import play.api.libs.functional.syntax._
 import play.api.libs.json.Reads._
 import play.api.libs.json._
 
 sealed case class Create(input: String, output: String, transtype: String, priority: Option[Int], params: Map[String, String]) {
-  def toJob: Job =
+  def toJob: Job = {
+    val id = UUID.randomUUID().toString
+
     Job(
-      UUID.randomUUID().toString,
+      id,
       this.input,
       this.output,
-      this.transtype,
-      this.params,
-      StatusString.Queue, priority.getOrElse(0),
+      List(
+        Task(
+          UUID.randomUUID().toString,
+          id,
+          None,
+          None,
+          this.transtype,
+          this.params,
+          StatusString.Queue,
+          None,
+          None,
+          None)
+      ),
+      priority.getOrElse(0),
       LocalDateTime.now(ZoneOffset.UTC),
-      None,
-      None,
       None)
+  }
 }
 
 object Create {

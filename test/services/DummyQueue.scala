@@ -18,43 +18,85 @@ class DummyQueue @Inject()(ws: WSClient,
                            actorSystem: ActorSystem)(implicit executionContext: ExecutionContext)
   extends SimpleQueue(ws, configuration, clock, actorSystem) {
 
-  private val now = LocalDateTime.now(clock)
+  val now = LocalDateTime.now(clock)
+
+//  val dummyData: Map[String, Job] = List(
+//    Job("id-A",
+//      "file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap",
+//      "file:/Volumes/tmp/out/",
+//      List(
+//        Task("id-A_1",
+//          "id-A",
+//          None,
+//          None,
+//          "html5",
+//          Map.empty,
+//          StatusString.Queue,
+//          None,
+//          None,
+//          None
+//        )
+//      ),
+//      0,
+//      now.minusHours(1),
+//      None
+//    ),
+//    Job("id-B",
+//      "file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap",
+//      "file:/Volumes/tmp/out/",
+//      List(
+//        Task("id-B_1",
+//          "id-B",
+//          None,
+//          None,
+//          "html5",
+//          Map.empty,
+//          StatusString.Queue,
+//          None,
+//          None,
+//          None
+//        ),
+//        Task("id-B_2",
+//          "id-B",
+//          None,
+//          None,
+//          "upload",
+//          Map.empty,
+//          StatusString.Queue,
+//          None,
+//          None,
+//          None
+//        )
+//      ),
+//      0,
+//      now.minusHours(2),
+//      None
+//    ),
+//    Job("id-C",
+//      "file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap",
+//      "file:/Volumes/tmp/out/",
+//      List(
+//        Task("id-C_1",
+//          "id-C",
+//          None,
+//          None,
+//          "pdf",
+//          Map.empty,
+//          StatusString.Queue,
+//          None,
+//          None,
+//          None
+//        )
+//      ),
+//      0,
+//      now,
+//      None
+//    ),
+//  ).map {
+//    job: Job => (job.id, job)
+//  }.toMap
+
   override val data: mutable.Map[String, Job] = mutable.Map(
-    "id-A" -> Job("id-A",
-      "file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap",
-      "file:/Volumes/tmp/out/",
-      "html5",
-      Map.empty,
-      StatusString.Queue,
-      0,
-      now.minusHours(1),
-      None,
-      None,
-      None
-    ),
-    "id-A1" -> Job("id-A1",
-      "file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap",
-      "file:/Volumes/tmp/out/",
-      "html5",
-      Map.empty,
-      StatusString.Queue,
-      0,
-      now.minusHours(2),
-      None,
-      None,
-      None
-    ),
-    "id-B" -> Job("id-B",
-      "file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap",
-      "file:/Volumes/tmp/out/",
-      "pdf",
-      Map.empty,
-      StatusString.Queue,
-      0,
-      now,
-      None,
-      None,
-      None
-    )
+//    dummyData.toSeq: _*
   )
 }
