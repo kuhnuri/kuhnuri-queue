@@ -47,7 +47,7 @@ class SimpleQueueSpec extends FlatSpec with Matchers with BeforeAndAfter {
     }
   }
 
-  "Queue with single job" should "return matching job" in {
+  "Job with single task" should "return first task" in {
     queue.data += "id-A" -> Job("id-A",
       "file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap",
       "file:/Volumes/tmp/out/",
@@ -68,7 +68,7 @@ class SimpleQueueSpec extends FlatSpec with Matchers with BeforeAndAfter {
     }
   }
 
-  "Queue with one successful task" should "return second task" in {
+  "Job with one successful task" should "return second task" in {
     queue.data += "id-A" -> Job("id-A",
       "file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap",
       "file:/Volumes/tmp/out/",
@@ -84,7 +84,7 @@ class SimpleQueueSpec extends FlatSpec with Matchers with BeforeAndAfter {
       case Some(res) => {
         res.transtype shouldBe "upload"
         res.id shouldBe "id-A_2"
-//        res.input shouldBe Some("file:/Volumes/tmp/out/userguide.zip")
+        res.input shouldBe Some("file:/Volumes/tmp/out/userguide.zip")
         res.output shouldBe Some("file:/Volumes/tmp/out/")
         res.worker shouldBe Some("worker-id")
       }
@@ -92,7 +92,7 @@ class SimpleQueueSpec extends FlatSpec with Matchers with BeforeAndAfter {
     }
   }
 
-  "Queue with active single task" should "accept job with update output" in {
+  "Job with single active task" should "accept job with update output" in {
     queue.data += "id-A" -> Job("id-A",
       "file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap",
       "file:/Volumes/tmp/out/",
@@ -104,43 +104,68 @@ class SimpleQueueSpec extends FlatSpec with Matchers with BeforeAndAfter {
       0, queue.now.minusHours(1), None)
 
     val res = Task("id-A_1", "id-A", Some("file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap"),
-      Some("file:/Volumes/tmp/out/userguide.zip"), "html5", Map.empty, StatusString.Process,
+      Some("file:/Volumes/tmp/out/userguide.zip"), "html5", Map.empty, StatusString.Done,
       Some(queue.now), Some("worker-id"), None)
     queue.submit(JobResult(res, List.empty))
 
     val job = queue.data("id-A")
     job.output shouldBe "file:/Volumes/tmp/out/userguide.zip"
+    job.transtype.head.status shouldBe StatusString.Done
     job.transtype.head.output shouldBe Some("file:/Volumes/tmp/out/userguide.zip")
     job.finished.isDefined shouldBe true
-
   }
 
-  "SimpleQueue" should "return second job" in {
-    queue.data += "id-B" -> Job("id-B",
+
+  "Job with one active task" should "accept job with update output" in {
+    queue.data += "id-A" -> Job("id-A",
       "file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap",
       "file:/Volumes/tmp/out/",
       List(
-        Task("id-B_1", "id-B", None, None, "html5", Map.empty, StatusString.Queue, None, None, None),
-        Task("id-B_2", "id-B", None, None, "upload", Map.empty, StatusString.Queue, None, None, None)
+        Task("id-A_1", "id-A", Some("file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap"),
+          Some("file:/Volumes/tmp/out/"), "html5", Map.empty, StatusString.Process,
+          Some(queue.now), Some("worker-id"), None),
+        Task("id-A_2", "id-A", None, None, "upload", Map.empty, StatusString.Queue, None, None, None)
       ),
-      0, queue.now.minusHours(2), None)
+      0, queue.now.minusHours(1), None)
 
-    queue.request(List("html5"), worker) match {
-      case Some(res) => {
-        res.transtype shouldBe "html5"
-        res.id shouldBe "id-B_1"
-        res.input shouldBe Some("file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap")
-        res.output shouldBe Some("file:/Volumes/tmp/out/")
-        res.worker shouldBe Some("worker-id")
+    val res = Task("id-A_1", "id-A", Some("file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap"),
+      Some("file:/Volumes/tmp/out/userguide.zip"), "html5", Map.empty, StatusString.Process,
+      Some(queue.now), Some("worker-id"), None)
+    queue.submit(JobResult(res, List.empty))
 
-        queue.submit(JobResult(res, List.empty))
-
-        val job = queue.data("id-B")
-        job.finished.isDefined shouldBe true
-      }
-      case None => fail
-    }
+    val job = queue.data("id-A")
+    job.output shouldBe "file:/Volumes/tmp/out/"
+    job.transtype.head.status shouldBe StatusString.Process
+    job.transtype.head.output shouldBe Some("file:/Volumes/tmp/out/userguide.zip")
+    job.finished.isDefined shouldBe false
   }
+
+//  "SimpleQueue" should "return second job" in {
+//    queue.data += "id-B" -> Job("id-B",
+//      "file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap",
+//      "file:/Volumes/tmp/out/",
+//      List(
+//        Task("id-B_1", "id-B", None, None, "html5", Map.empty, StatusString.Queue, None, None, None),
+//        Task("id-B_2", "id-B", None, None, "upload", Map.empty, StatusString.Queue, None, None, None)
+//      ),
+//      0, queue.now.minusHours(2), None)
+//
+//    queue.request(List("html5"), worker) match {
+//      case Some(res) => {
+//        res.transtype shouldBe "html5"
+//        res.id shouldBe "id-B_1"
+//        res.input shouldBe Some("file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap")
+//        res.output shouldBe Some("file:/Volumes/tmp/out/")
+//        res.worker shouldBe Some("worker-id")
+//
+//        queue.submit(JobResult(res, List.empty))
+//
+//        val job = queue.data("id-B")
+//        job.finished.isDefined shouldBe true
+//      }
+//      case None => fail
+//    }
+//  }
   //
   //  "SimpleQueue" should "return first task" in {
   //    queue.request(List("upload"), worker) match {

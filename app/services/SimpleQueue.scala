@@ -24,26 +24,26 @@ class SimpleQueue @Inject()(ws: WSClient,
   private val timeout = Duration.ofMillis(configuration.getMillis("queue.timeout"))
 
   private val dummyData: Map[String, Job] = List(
-    Job("id-demo",
-      "file:/opt/workspace/Downloads/dita-demo-content-collection/Thunderbird/en-US/maps/User_Guide.ditamap",
-      "file:/opt/workspace/Downloads/dita-demo-content-collection/Thunderbird/en-US/out/",
-      List(
-        Task("id-demo_1",
-          "id-demo",
-          None,
-          None,
-          "html5",
-          Map.empty,
-          StatusString.Queue,
-          None,
-          None,
-          None
-        )
-      ),
-      0,
-      LocalDateTime.now(clock).minusHours(3),
-      None
-    ),
+//    Job("id-demo",
+//      "file:/opt/workspace/Downloads/dita-demo-content-collection/Thunderbird/en-US/maps/User_Guide.ditamap",
+//      "file:/opt/workspace/Downloads/dita-demo-content-collection/Thunderbird/en-US/out/",
+//      List(
+//        Task("id-demo_1",
+//          "id-demo",
+//          None,
+//          None,
+//          "html5",
+//          Map.empty,
+//          StatusString.Queue,
+//          None,
+//          None,
+//          None
+//        )
+//      ),
+//      0,
+//      LocalDateTime.now(clock).minusHours(3),
+//      None
+//    ),
     //    Job("dita-ot",
     //      "file:/opt/workspace/Work/dita-ot/src/main/docsrc/userguide.ditamap",
     //      "file:/opt/workspace/Work/dita-ot/src/main/docsrc/out/html5/",
@@ -245,6 +245,11 @@ class SimpleQueue @Inject()(ws: WSClient,
         .headOption
     }
 
+    def zipWithPreviousOutput(job: Job): Seq[(Task, Option[String])] =
+      job.transtype.zip(
+        List(Some(job.input)) ++ job.transtype.map(_.output)
+      )
+
     return data.values
       .filter(job => hasQueueTask(job, transtypes))
       .toList
@@ -254,10 +259,11 @@ class SimpleQueue @Inject()(ws: WSClient,
         getFirstQueueTask(job) match {
           case Some(task) => {
             var resTask: Task = null
-            val tasks = job.transtype.map { t =>
+            val tasksWithPrevious: Seq[(Task, Option[String])] = zipWithPreviousOutput(job)
+            val tasks = tasksWithPrevious.map { case (t, previousOutput) =>
               if (t.id == task.id) {
                 resTask = task.copy(
-                  input = Some(job.input),
+                  input = previousOutput,
                   output = Some(job.output),
                   status = StatusString.Process,
                   processing = Some(LocalDateTime.now(clock)),
@@ -279,7 +285,6 @@ class SimpleQueue @Inject()(ws: WSClient,
       }
   }
 
-
   private def compare(j: Job, k: Job): Boolean = {
     val p = j.priority.compareTo(k.priority)
     if (p != 0) {
@@ -288,7 +293,6 @@ class SimpleQueue @Inject()(ws: WSClient,
     j.created.toEpochSecond(ZoneOffset.UTC).compareTo(k.created.toEpochSecond(ZoneOffset.UTC)) < 0
   }
 
-  // FIXME this should return a Try or Option
   override def submit(result: JobResult): Job = {
     logger.info(s"Submit ${result.task.id}")
     data.get(result.task.job) match {
