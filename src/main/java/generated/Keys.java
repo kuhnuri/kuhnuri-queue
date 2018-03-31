@@ -4,12 +4,15 @@
 package generated;
 
 
-import generated.tables.Queue;
-import generated.tables.records.QueueRecord;
+import generated.tables.Job;
+import generated.tables.Task;
+import generated.tables.records.JobRecord;
+import generated.tables.records.TaskRecord;
 
 import javax.annotation.Generated;
 
 import org.jooq.Identity;
+import org.jooq.UniqueKey;
 import org.jooq.impl.Internal;
 
 
@@ -31,12 +34,15 @@ public class Keys {
     // IDENTITY definitions
     // -------------------------------------------------------------------------
 
-    public static final Identity<QueueRecord, Integer> IDENTITY_QUEUE = Identities0.IDENTITY_QUEUE;
+    public static final Identity<JobRecord, Integer> IDENTITY_JOB = Identities0.IDENTITY_JOB;
+    public static final Identity<TaskRecord, Integer> IDENTITY_TASK = Identities0.IDENTITY_TASK;
 
     // -------------------------------------------------------------------------
     // UNIQUE and PRIMARY KEY definitions
     // -------------------------------------------------------------------------
 
+    public static final UniqueKey<JobRecord> JOB_ID_PK = UniqueKeys0.JOB_ID_PK;
+    public static final UniqueKey<TaskRecord> TASK_ID_PK = UniqueKeys0.TASK_ID_PK;
 
     // -------------------------------------------------------------------------
     // FOREIGN KEY definitions
@@ -48,6 +54,12 @@ public class Keys {
     // -------------------------------------------------------------------------
 
     private static class Identities0 {
-        public static Identity<QueueRecord, Integer> IDENTITY_QUEUE = Internal.createIdentity(Queue.QUEUE, Queue.QUEUE.ID);
+        public static Identity<JobRecord, Integer> IDENTITY_JOB = Internal.createIdentity(Job.JOB, Job.JOB.ID);
+        public static Identity<TaskRecord, Integer> IDENTITY_TASK = Internal.createIdentity(Task.TASK, Task.TASK.ID);
+    }
+
+    private static class UniqueKeys0 {
+        public static final UniqueKey<JobRecord> JOB_ID_PK = Internal.createUniqueKey(Job.JOB, "job_id_pk", Job.JOB.ID);
+        public static final UniqueKey<TaskRecord> TASK_ID_PK = Internal.createUniqueKey(Task.TASK, "task_id_pk", Task.TASK.ID);
     }
 }

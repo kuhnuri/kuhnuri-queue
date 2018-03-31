@@ -4,7 +4,8 @@
 package generated;
 
 
-import generated.tables.Queue;
+import generated.tables.Job;
+import generated.tables.Task;
 
 import javax.annotation.Generated;
 
@@ -23,7 +24,12 @@ import javax.annotation.Generated;
 public class Tables {
 
     /**
-     * The table <code>public.queue</code>.
+     * The table <code>public.job</code>.
      */
-    public static final Queue QUEUE = generated.tables.Queue.QUEUE;
+    public static final Job JOB = generated.tables.Job.JOB;
+
+    /**
+     * The table <code>public.task</code>.
+     */
+    public static final Task TASK = generated.tables.Task.TASK;
 }

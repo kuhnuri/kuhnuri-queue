@@ -4,7 +4,8 @@
 package generated;
 
 
-import generated.tables.Queue;
+import generated.tables.Job;
+import generated.tables.Task;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -31,7 +32,7 @@ import org.jooq.impl.SchemaImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Public extends SchemaImpl {
 
-    private static final long serialVersionUID = 499571414;
+    private static final long serialVersionUID = -312124830;
 
     /**
      * The reference instance of <code>public</code>
@@ -39,9 +40,14 @@ public class Public extends SchemaImpl {
     public static final Public PUBLIC = new Public();
 
     /**
-     * The table <code>public.queue</code>.
+     * The table <code>public.job</code>.
      */
-    public final Queue QUEUE = generated.tables.Queue.QUEUE;
+    public final Job JOB = generated.tables.Job.JOB;
+
+    /**
+     * The table <code>public.task</code>.
+     */
+    public final Task TASK = generated.tables.Task.TASK;
 
     /**
      * No further instances allowed
@@ -68,7 +74,9 @@ public class Public extends SchemaImpl {
 
     private final List<Sequence<?>> getSequences0() {
         return Arrays.<Sequence<?>>asList(
-            Sequences.QUEUE_ID_SEQ);
+            Sequences.JOB_ID_SEQ,
+            Sequences.TASK_ID_SEQ,
+            Sequences.TASK_JOB_SEQ);
     }
 
     @Override
@@ -80,6 +88,7 @@ public class Public extends SchemaImpl {
 
     private final List<Table<?>> getTables0() {
         return Arrays.<Table<?>>asList(
-            Queue.QUEUE);
+            Job.JOB,
+            Task.TASK);
     }
 }
