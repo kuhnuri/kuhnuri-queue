@@ -26,16 +26,6 @@ object Job {
 
   import models.Task._
 
-  implicit val jobStatusStringReads =
-    Reads[StatusString](j => try {
-      JsSuccess(StatusString.parse(j.as[JsString].value))
-    } catch {
-      case e: IllegalArgumentException => JsError(e.toString)
-    })
-
-  implicit val jobStatusStringWrites =
-    Writes[StatusString](s => JsString(s.toString))
-
   implicit val localDateTimeWrites =
     Writes[LocalDateTime](s => JsString(s.atOffset(ZoneOffset.UTC).toString))
 

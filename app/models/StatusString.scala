@@ -1,6 +1,7 @@
 package models
 
 import generated.enums.Status
+import play.api.libs.json._
 
 sealed trait StatusString
 
@@ -36,4 +37,15 @@ object StatusString {
     case Status.done => Done
     case Status.error => Error
   }
+
+  implicit val jobStatusStringReads =
+    Reads[StatusString](j => try {
+      JsSuccess(StatusString.parse(j.as[JsString].value))
+    } catch {
+      case e: IllegalArgumentException => JsError(e.toString)
+    })
+
+  implicit val jobStatusStringWrites =
+    Writes[StatusString](s => JsString(s.toString))
+
 }
