@@ -43,33 +43,33 @@ class DBQueue @Inject()(db: Database,
   private def checkQueue(): Unit = {
     logger.debug("Check stale jobs")
     db.withConnection { connection =>
-      val sql = DSL.using(connection, SQLDialect.POSTGRES_9_4)
-      val nowMinusTimeout = getOffsetDateTime(LocalDateTime.now(clock).minus(timeout))
-      val nullTimestamp: OffsetDateTime = null
-      val nullString: String = null
-      selectJob(sql)
-        .where(QUEUE.FINISHED.isNull
-          .and(QUEUE.PROCESSING.isNotNull)
-          .and(QUEUE.PROCESSING.lt(nowMinusTimeout))
-        )
-        .fetch(Mappers.JobMapper)
-        .asScala
-        .filter { job => !pingWorker(job) }
-        .foreach { job =>
-          logger.info(s"Return ${job.id} back to queue")
-          try {
-            sql
-              .update(QUEUE)
-              .set(QUEUE.STATUS, Status.queue)
-              .set(QUEUE.PROCESSING, nullTimestamp)
-              .set(QUEUE.WORKER, nullString)
-              .where(QUEUE.UUID.eq(job.id))
-              .execute()
-          } catch {
-            case e: DataAccessException =>
-              logger.error(s"Failed to return stale job to queue: ${e.getMessage}", e)
-          }
-        }
+//      val sql = DSL.using(connection, SQLDialect.POSTGRES_9_4)
+//      val nowMinusTimeout = getOffsetDateTime(LocalDateTime.now(clock).minus(timeout))
+//      val nullTimestamp: OffsetDateTime = null
+//      val nullString: String = null
+//      selectJob(sql)
+//        .where(JOB.FINISHED.isNull
+//          .and(JOB.PROCESSING.isNotNull)
+//          .and(JOB.PROCESSING.lt(nowMinusTimeout))
+//        )
+//        .fetch(Mappers.JobMapper)
+//        .asScala
+//        .filter { job => !pingWorker(job) }
+//        .foreach { job =>
+//          logger.info(s"Return ${job.id} back to queue")
+//          try {
+//            sql
+//              .update(JOB)
+//              .set(JOB.STATUS, Status.queue)
+//              .set(JOB.PROCESSING, nullTimestamp)
+//              .set(JOB.WORKER, nullString)
+//              .where(JOB.UUID.eq(job.id))
+//              .execute()
+//          } catch {
+//            case e: DataAccessException =>
+//              logger.error(s"Failed to return stale job to queue: ${e.getMessage}", e)
+//          }
+//        }
     }
   }
 
@@ -79,156 +79,179 @@ class DBQueue @Inject()(db: Database,
   }
 
   private def pingWorker(job: Job): Boolean = {
-    WorkerStore.workers.get(job.worker.get).map { worker =>
-      val workerUri = worker.uri.resolve("api/v1/status")
-//      logger.debug(s"Check worker status: ${workerUri}")
-      val req: Future[Boolean] = ws.url(workerUri.toString)
-        .addHttpHeaders(AUTH_TOKEN_HEADER -> worker.token)
-        .withRequestTimeout(10000.millis)
-        .get()
-        .map(_.status == http.Status.OK)
-      val res: Boolean = Await.result(req, 10000.millis)
-      return res
-    }
+//    WorkerStore.workers.get(job.worker.get).map { worker =>
+//      val workerUri = worker.uri.resolve("api/v1/status")
+////      logger.debug(s"Check worker status: ${workerUri}")
+//      val req: Future[Boolean] = ws.url(workerUri.toString)
+//        .addHttpHeaders(AUTH_TOKEN_HEADER -> worker.token)
+//        .withRequestTimeout(10000.millis)
+//        .get()
+//        .map(_.status == http.Status.OK)
+//      val res: Boolean = Await.result(req, 10000.millis)
+//      return res
+//    }
     return false
   }
 
-  private def selectJob(sql: DSLContext): SelectJoinStep[Record10[String, String, String, String, Status, Integer, OffsetDateTime, OffsetDateTime, String, OffsetDateTime]] = {
+  private def selectJob(sql: DSLContext): SelectJoinStep[Record6[String, String, String, /*String, Status,*/ Integer, OffsetDateTime,/* OffsetDateTime, String, */OffsetDateTime]] = {
     sql
-      .select(QUEUE.UUID, QUEUE.INPUT, QUEUE.OUTPUT, QUEUE.TRANSTYPE, QUEUE.STATUS, QUEUE.PRIORITY,
-        QUEUE.CREATED, QUEUE.PROCESSING, QUEUE.WORKER,  QUEUE.FINISHED)
-      .from(QUEUE)
+      .select(JOB.UUID, JOB.INPUT, JOB.OUTPUT,
+//        JOB.TRANSTYPE, JOB.STATUS,
+        JOB.PRIORITY,
+        JOB.CREATED,
+//        JOB.PROCESSING, JOB.WORKER,
+        JOB.FINISHED)
+      .from(JOB)
   }
 
   override def contents(): Seq[Job] = {
     db.withConnection { connection =>
-      val sql = DSL.using(connection, SQLDialect.POSTGRES_9_4)
-      val query = selectJob(sql)
-        .orderBy(QUEUE.CREATED.desc)
-      val res = query
-        .fetch(Mappers.JobMapper)
-        .asScala
-      res
+//      val sql = DSL.using(connection, SQLDialect.POSTGRES_9_4)
+//      val query = selectJob(sql)
+//        .orderBy(JOB.CREATED.desc)
+//      val res = query
+//        .fetch(Mappers.JobMapper)
+//        .asScala
+//      res
+      List()
     }
   }
 
   override def get(id: String): Option[Job] =
     db.withConnection { connection =>
-      val sql = DSL.using(connection, SQLDialect.POSTGRES_9_4)
-      val query = selectJob(sql)
-        .where(QUEUE.UUID.eq(id))
-      val res = query
-        .fetchOne(Mappers.JobMapper)
-      Option(res)
+//      val sql = DSL.using(connection, SQLDialect.POSTGRES_9_4)
+//      val query = selectJob(sql)
+//        .where(JOB.UUID.eq(id))
+//      val res = query
+//        .fetchOne(Mappers.JobMapper)
+//      Option(res)
+      None
     }
 
   override def log(id: String, offset: Int): Option[Seq[String]] =
     logStore.get(id)
 
-  override def add(job: Create): Job = {
+  override def add(create: Create): Job = {
+    val job = create.toJob
     db.withConnection { connection =>
       val created = LocalDateTime.now(clock)
       val sql = DSL.using(connection, SQLDialect.POSTGRES_9_4)
+      // job
       val query = sql
-        .insertInto(QUEUE,
-          QUEUE.UUID, QUEUE.CREATED, QUEUE.INPUT, QUEUE.OUTPUT, QUEUE.TRANSTYPE)
-        .values(UUID.randomUUID().toString, OffsetDateTime.of(created, ZoneOffset.UTC),
-          job.input, job.output, job.transtype)
+        .insertInto(JOB,
+          JOB.UUID, JOB.CREATED, JOB.INPUT, JOB.OUTPUT, JOB.PRIORITY
+          //, JOB.TRANSTYPE
+        )
+        .values(job.id, OffsetDateTime.of(created, ZoneOffset.UTC),
+          job.input, job.output, job.priority
+          //, job.transtype
+        )
       val res = query
-        .returning(QUEUE.UUID, QUEUE.STATUS)
+        .returning(JOB.UUID, JOB.ID
+          //, JOB.STATUS
+        )
         .fetchOne()
-      Job(
-        res.getUuid,
-        job.input,
-        job.output,
-        job.transtype,
-        Map.empty,
-        StatusString.parse(res.getStatus),
-        job.priority.getOrElse(0),
-        created,
-        None,
-        None,
-        None)
+      val jobID = res.getId
+      // tasks
+      val taskQuery = job.transtype.map { task =>
+        sql
+          .insertInto(TASK,
+            TASK.UUID, TASK.TRANSTYPE, TASK.STATUS, TASK.PRIORITY, TASK.JOB
+            //, JOB.TRANSTYPE
+          )
+          .values(
+            task.id, task.transtype, Status.valueOf(task.status.toString), 0, jobID
+          )
+      }.asJavaCollection
+      val taskRes = sql
+        .batch(taskQuery)
+        .execute()
+
+      job.copy(
+        id = res.getUuid
+      )
     }
   }
 
-  override def update(update: Update): Option[Job] = {
+  override def update(update: Update): Option[Task] = {
     db.withConnection { connection =>
       logger.info("update")
-      val sql = DSL.using(connection, SQLDialect.POSTGRES_9_4)
-      val now = OffsetDateTime.now(clock)
-      val query = sql
-        .update(QUEUE)
-        .set(QUEUE.STATUS, Status.valueOf(update.status.get.toString))
-        .set(update.status.get match {
-          case StatusString.Queue => QUEUE.CREATED
-          case StatusString.Process => QUEUE.PROCESSING
-          case StatusString.Done => QUEUE.FINISHED
-          case StatusString.Error => QUEUE.FINISHED
-        }, now)
-        .where(QUEUE.UUID.eq(update.id))
-      val res = query
-        .returning(QUEUE.UUID, QUEUE.STATUS)
-        .execute()
+//      val sql = DSL.using(connection, SQLDialect.POSTGRES_9_4)
+//      val now = OffsetDateTime.now(clock)
+//      val query = sql
+//        .update(JOB)
+//        .set(JOB.STATUS, Status.valueOf(update.status.get.toString))
+//        .set(update.status.get match {
+//          case StatusString.Queue => JOB.CREATED
+//          case StatusString.Process => JOB.PROCESSING
+//          case StatusString.Done => JOB.FINISHED
+//          case StatusString.Error => JOB.FINISHED
+//        }, now)
+//        .where(JOB.UUID.eq(update.id))
+//      val res = query
+//        .returning(JOB.UUID, JOB.STATUS)
+//        .execute()
       None
     }
   }
 
-  override def request(transtypes: List[String], worker: Worker): Option[Job] =
+  override def request(transtypes: List[String], worker: Worker): Option[Task] =
     db.withConnection { connection =>
       logger.debug("Request work for transtypes " + transtypes.mkString(", "))
-      val sql = DSL.using(connection, SQLDialect.POSTGRES_9_4)
-      val now = OffsetDateTime.now(clock)
-      val query = sql
-        .update(QUEUE)
-        .set(QUEUE.STATUS, Status.process)
-        .set(QUEUE.PROCESSING, now)
-        .set(QUEUE.WORKER, worker.id)
-        .where(QUEUE.UUID.in(
-          sql.select(QUEUE.UUID)
-            .from(QUEUE)
-            .where(QUEUE.STATUS.eq(Status.queue)
-              .and(QUEUE.TRANSTYPE.in(transtypes.asJava)))
-            .orderBy(QUEUE.PRIORITY.asc, QUEUE.CREATED.asc())
-            .limit(1)))
-      val res = query
-        .returning(QUEUE.UUID, QUEUE.INPUT, QUEUE.OUTPUT, QUEUE.TRANSTYPE, QUEUE.STATUS, QUEUE.CREATED, QUEUE.PROCESSING, QUEUE.FINISHED)
-        .fetchOne()
-      logger.debug(s"Request got back ${query}")
-      res match {
-        case null => None
-        case res =>
-          val job = Job(
-            res.getUuid,
-            res.getInput,
-            res.getOutput,
-            res.getTranstype,
-            Map.empty,
-            StatusString.parse(res.getStatus),
-            res.getPriority.intValue(),
-            res.getCreated.toLocalDateTime,
-            Some(res.getProcessing.toLocalDateTime),
-            Some(worker.id),
-            None//Some(res.getFinished.toLocalDateTime)
-          )
-          Some(job)
-      }
+//      val sql = DSL.using(connection, SQLDialect.POSTGRES_9_4)
+//      val now = OffsetDateTime.now(clock)
+//      val query = sql
+//        .update(JOB)
+//        .set(JOB.STATUS, Status.process)
+//        .set(JOB.PROCESSING, now)
+//        .set(JOB.WORKER, worker.id)
+//        .where(JOB.UUID.in(
+//          sql.select(JOB.UUID)
+//            .from(JOB)
+//            .where(JOB.STATUS.eq(Status.queue)
+//              .and(JOB.TRANSTYPE.in(transtypes.asJava)))
+//            .orderBy(JOB.PRIORITY.asc, JOB.CREATED.asc())
+//            .limit(1)))
+//      val res = query
+//        .returning(JOB.UUID, JOB.INPUT, JOB.OUTPUT, JOB.TRANSTYPE, JOB.STATUS, JOB.CREATED, JOB.PROCESSING, JOB.FINISHED)
+//        .fetchOne()
+//      logger.debug(s"Request got back ${query}")
+//      res match {
+//        case null => None
+//        case res =>
+//          val job = Job(
+//            res.getUuid,
+//            res.getInput,
+//            res.getOutput,
+//            res.getTranstype,
+//            Map.empty,
+//            StatusString.parse(res.getStatus),
+//            res.getPriority.intValue(),
+//            res.getCreated.toLocalDateTime,
+//            Some(res.getProcessing.toLocalDateTime),
+//            Some(worker.id),
+//            None//Some(res.getFinished.toLocalDateTime)
+//          )
+//          Some(job)
+//      }
+      None
     }
 
   // FIXME this should return a Try or Option
   override def submit(res: JobResult): Job =
     db.withConnection { connection =>
       //      logger.info(s"Submit $res")
-      val sql = DSL.using(connection, SQLDialect.POSTGRES_9_4)
-      val now = OffsetDateTime.now(clock)
-      sql
-        .update(QUEUE)
-        .set(QUEUE.STATUS, Status.valueOf(res.job.status.toString))
-        .set(QUEUE.FINISHED, now)
-        .where(QUEUE.UUID.eq(res.job.id))
-        .execute()
-      logStore.add(res.job.id, res.log)
-      res.job
+//      val sql = DSL.using(connection, SQLDialect.POSTGRES_9_4)
+//      val now = OffsetDateTime.now(clock)
+//      sql
+//        .update(JOB)
+//        .set(JOB.STATUS, Status.valueOf(res.job.status.toString))
+//        .set(JOB.FINISHED, now)
+//        .where(JOB.UUID.eq(res.job.id))
+//        .execute()
+//      logStore.add(res.job.id, res.log)
+//      res.job
+      null
     }
 }
 
@@ -236,24 +259,24 @@ private object Mappers {
   type ReviewStatus = String
   type CommentError = String
 
-  object JobMapper extends RecordMapper[Record10[String, String, String, String, Status, Integer, OffsetDateTime, OffsetDateTime, String, OffsetDateTime], Job] {
-    @Override
-    def map(c: Record10[String, String, String, String, Status, Integer, OffsetDateTime, OffsetDateTime, String, OffsetDateTime]): Job = {
-      Job(
-        c.value1,
-        c.value2,
-        c.value3,
-        c.value4,
-        Map.empty,
-        StatusString.parse(c.value5),
-        c.value6,
-        c.value7.toLocalDateTime,
-        Option(c.value8).map(_.toLocalDateTime),
-        Option(c.value9),
-        Option(c.value10).map(_.toLocalDateTime)
-      )
-    }
-  }
+//  object JobMapper extends RecordMapper[Record10[String, String, String, String, Status, Integer, OffsetDateTime, OffsetDateTime, String, OffsetDateTime], Job] {
+//    @Override
+//    def map(c: Record10[String, String, String, String, Status, Integer, OffsetDateTime, OffsetDateTime, String, OffsetDateTime]): Job = {
+//      Job(
+//        c.value1,
+//        c.value2,
+//        c.value3,
+//        c.value4,
+//        Map.empty,
+//        StatusString.parse(c.value5),
+//        c.value6,
+//        c.value7.toLocalDateTime,
+//        Option(c.value8).map(_.toLocalDateTime),
+//        Option(c.value9),
+//        Option(c.value10).map(_.toLocalDateTime)
+//      )
+//    }
+//  }
 
   //  object JobStatusMapper extends RecordMapper[Record3[String, String, Status], JobStatus] {
   //    @Override
