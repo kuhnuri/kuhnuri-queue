@@ -8,7 +8,7 @@ import play.api.libs.functional.syntax._
 import play.api.libs.json.Reads._
 import play.api.libs.json._
 
-sealed case class Create(input: String, output: String, transtype: String, priority: Option[Int], params: Map[String, String]) {
+sealed case class Create(input: String, output: String, transtype: Seq[String], priority: Option[Int], params: Map[String, String]) {
   def toJob: Job = {
     val id = UUID.randomUUID().toString
 
@@ -16,13 +16,13 @@ sealed case class Create(input: String, output: String, transtype: String, prior
       id,
       this.input,
       this.output,
-      List(
+      this.transtype.map(t =>
         Task(
           UUID.randomUUID().toString,
           id,
           None,
           None,
-          this.transtype,
+          t,
           this.params,
           StatusString.Queue,
           None,
@@ -42,7 +42,7 @@ object Create {
       (JsPath \ "output").read[String] /*.filter(_.map {
         new URI(_).isAbsolute
       }.getOrElse(true))*/ and
-      (JsPath \ "transtype").read[String] and
+      (JsPath \ "transtype").read[Seq[String]] and
       (JsPath \ "priority").readNullable[Int] and
       (JsPath \ "params").read[Map[String, String]]
     ) (Create.apply _)

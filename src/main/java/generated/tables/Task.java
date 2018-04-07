@@ -41,7 +41,7 @@ import org.jooq.impl.TableImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Task extends TableImpl<TaskRecord> {
 
-    private static final long serialVersionUID = -895205522;
+    private static final long serialVersionUID = -1195560984;
 
     /**
      * The reference instance of <code>public.task</code>
@@ -97,11 +97,6 @@ public class Task extends TableImpl<TaskRecord> {
     public final TableField<TaskRecord, OffsetDateTime> FINISHED = createField("finished", org.jooq.impl.SQLDataType.TIMESTAMPWITHTIMEZONE, this, "");
 
     /**
-     * The column <code>public.task.priority</code>.
-     */
-    public final TableField<TaskRecord, Integer> PRIORITY = createField("priority", org.jooq.impl.SQLDataType.INTEGER.nullable(false).defaultValue(org.jooq.impl.DSL.field("0", org.jooq.impl.SQLDataType.INTEGER)), this, "");
-
-    /**
      * The column <code>public.task.worker</code>.
      */
     public final TableField<TaskRecord, String> WORKER = createField("worker", org.jooq.impl.SQLDataType.VARCHAR(256), this, "");
@@ -110,6 +105,11 @@ public class Task extends TableImpl<TaskRecord> {
      * The column <code>public.task.job</code>.
      */
     public final TableField<TaskRecord, Integer> JOB = createField("job", org.jooq.impl.SQLDataType.INTEGER.nullable(false).defaultValue(org.jooq.impl.DSL.field("nextval('task_job_seq'::regclass)", org.jooq.impl.SQLDataType.INTEGER)), this, "");
+
+    /**
+     * The column <code>public.task.position</code>.
+     */
+    public final TableField<TaskRecord, Integer> POSITION = createField("position", org.jooq.impl.SQLDataType.INTEGER.nullable(false), this, "");
 
     /**
      * Create a <code>public.task</code> table reference

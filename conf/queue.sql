@@ -37,12 +37,12 @@ CREATE TABLE task
     PRIMARY KEY,
   processing TIMESTAMP WITH TIME ZONE,
   finished   TIMESTAMP WITH TIME ZONE,
-  priority   INTEGER DEFAULT 0                NOT NULL,
   worker     VARCHAR(256),
   job        SERIAL                           NOT NULL
     CONSTRAINT task_job_id_fk
     REFERENCES job
-    ON DELETE CASCADE
+    ON DELETE CASCADE,
+  position   INTEGER                          NOT NULL
 );
 
 CREATE UNIQUE INDEX task_uuid_uindex
@@ -53,5 +53,3 @@ CREATE UNIQUE INDEX task_id_uindex
 
 CREATE INDEX task_job_index
   ON task (job);
-
-
