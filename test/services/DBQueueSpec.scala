@@ -14,6 +14,8 @@ import play.api.inject.bind
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.{Application, Configuration, Mode}
 
+import scala.io.Source
+
 /**
   * Add your spec here.
   * You can mock out a whole application including requests, plugins etc.
@@ -58,20 +60,14 @@ class DBQueueSpec extends PlaySpec with GuiceOneAppPerTest with BeforeAndAfterEa
     .build()
 
   private val worker = Worker("token", "worker-id", URI.create("worker-uri"))
+  val fixture = Source.fromInputStream(getClass.getResourceAsStream("/services/fixture.sql")).mkString
 
   override def beforeEach(): Unit = {
     try {
       super.beforeEach()
     } finally {
       withDatabase { connection =>
-        connection.prepareStatement(
-          """
-        INSERT INTO job (id, uuid, created, input, output, finished, priority)
-          VALUES (1, 'a', now(), 'file://in', 'file://out', null, 0);
-        INSERT INTO task (id, uuid, transtype, input, output, status, processing, finished, worker, job, position)
-          VALUES (1, 'a1', 'html5', null, null, 'queue', null, null, null, 1, 1),
-                 (2, 'a2', 'upload', null, null, 'queue', null, null, null, 1, 2);
-        """).execute()
+        connection.createStatement().execute(fixture)
       }
     }
   }
@@ -81,10 +77,10 @@ class DBQueueSpec extends PlaySpec with GuiceOneAppPerTest with BeforeAndAfterEa
       super.afterEach()
     } finally {
       withDatabase { connection =>
-        connection.prepareStatement(
+        connection.createStatement.execute(
           """
           DELETE FROM job;
-          """).execute()
+          """)
       }
 
     }
@@ -110,17 +106,17 @@ class DBQueueSpec extends PlaySpec with GuiceOneAppPerTest with BeforeAndAfterEa
 
       val jobRes = connection.prepareStatement(
         """
-        SELECT count(ID) FROM job GROUP BY id
+        SELECT count(ID) FROM job;
         """).executeQuery()
       jobRes.next()
-      jobRes.getLong(1) mustBe 1
+      jobRes.getLong(1) mustBe 3
 
       val taskRes = connection.prepareStatement(
         """
-        SELECT count(ID) FROM task GROUP BY job
+        SELECT count(ID) FROM task
         """).executeQuery()
       taskRes.next()
-      taskRes.getLong(1) mustBe 2
+      taskRes.getLong(1) mustBe 6
     }
   }
 
