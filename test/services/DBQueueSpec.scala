@@ -100,8 +100,8 @@ class DBQueueSpec extends PlaySpec with GuiceOneAppPerTest with BeforeAndAfterEa
     }
   }
 
-  "Adding one" should {
-    "insert into DB" in withDatabase { implicit connection =>
+  "Queue" should {
+    "add new job" in withDatabase { implicit connection =>
       val queue = app.injector.instanceOf[Queue]
       val create = Create(
         "file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap",
@@ -118,6 +118,13 @@ class DBQueueSpec extends PlaySpec with GuiceOneAppPerTest with BeforeAndAfterEa
         res => 1,
         res => res.getLong(1))
       taskRes(1) mustBe 6
+    }
+
+    "list contents"  in withDatabase { implicit connection =>
+      val queue = app.injector.instanceOf[Queue]
+      val contents = queue.contents()
+
+      contents.size mustBe 2
     }
   }
 
@@ -139,8 +146,8 @@ class DBQueueSpec extends PlaySpec with GuiceOneAppPerTest with BeforeAndAfterEa
     buf.toMap
   }
 
-  "Request one" should {
-    "update and return" in withDatabase { implicit connection =>
+  "Request" should {
+    "offer first job" in withDatabase { implicit connection =>
       val dispatcher = app.injector.instanceOf[Dispatcher]
       dispatcher.request(List("html5"), worker)
 
@@ -154,7 +161,7 @@ class DBQueueSpec extends PlaySpec with GuiceOneAppPerTest with BeforeAndAfterEa
       taskRes(4) mustBe "queue"
     }
 
-    "offer second task" in withDatabase { implicit connection =>
+    "offer second job" in withDatabase { implicit connection =>
       val dispatcher = app.injector.instanceOf[Dispatcher]
       dispatcher.request(List("html5", "upload"), worker)
       dispatcher.request(List("html5", "upload"), worker)
@@ -169,7 +176,7 @@ class DBQueueSpec extends PlaySpec with GuiceOneAppPerTest with BeforeAndAfterEa
       taskRes(4) mustBe "queue"
     }
 
-    "finish first task" in withDatabase { implicit connection =>
+    "offer second task of first job" in withDatabase { implicit connection =>
       val dispatcher = app.injector.instanceOf[Dispatcher]
       val task = dispatcher.request(List("html5", "upload"), worker).get
       val taskResult = JobResult(task.copy(status = StatusString.Done), List.empty)

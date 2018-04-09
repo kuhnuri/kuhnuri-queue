@@ -103,14 +103,21 @@ class DBQueue @Inject()(db: Database,
 
   override def contents(): Seq[Job] = {
     db.withConnection { connection =>
-      //      val sql = DSL.using(connection, SQLDialect.POSTGRES_9_4)
-      //      val query = selectJob(sql)
-      //        .orderBy(JOB.CREATED.desc)
-      //      val res = query
-      //        .fetch(Mappers.JobMapper)
-      //        .asScala
-      //      res
-      List()
+        val sql = DSL.using(connection, SQLDialect.POSTGRES_9_4)
+        val query = //selectJob(sql)
+          sql
+            .select(JOB.UUID, JOB.INPUT, JOB.OUTPUT,
+              //        JOB.TRANSTYPE, JOB.STATUS,
+              JOB.PRIORITY,
+              JOB.CREATED,
+              //        JOB.PROCESSING, JOB.WORKER,
+              JOB.FINISHED)
+            .from(JOB)
+          .orderBy(JOB.CREATED.desc)
+        val res = query
+          .fetch(Mappers.JobMapper)
+          .asScala
+        res
     }
   }
 
@@ -303,24 +310,34 @@ private object Mappers {
   type ReviewStatus = String
   type CommentError = String
 
-  //  object JobMapper extends RecordMapper[Record10[String, String, String, String, Status, Integer, OffsetDateTime, OffsetDateTime, String, OffsetDateTime], Job] {
-  //    @Override
-  //    def map(c: Record10[String, String, String, String, Status, Integer, OffsetDateTime, OffsetDateTime, String, OffsetDateTime]): Job = {
-  //      Job(
-  //        c.value1,
-  //        c.value2,
-  //        c.value3,
-  //        c.value4,
-  //        Map.empty,
-  //        StatusString.parse(c.value5),
-  //        c.value6,
-  //        c.value7.toLocalDateTime,
-  //        Option(c.value8).map(_.toLocalDateTime),
-  //        Option(c.value9),
-  //        Option(c.value10).map(_.toLocalDateTime)
-  //      )
-  //    }
-  //  }
+    object JobMapper extends RecordMapper[Record6[String, String, String, /*String, Status, */Integer, OffsetDateTime,/* OffsetDateTime, String,*/ OffsetDateTime], Job] {
+      @Override
+      def map(c: Record6[String, String, String, /*String, Status, */Integer, OffsetDateTime, /*OffsetDateTime, String,*/ OffsetDateTime]): Job = {
+        Job(
+          c.value1,
+          c.value2,
+          c.value3,
+//          c.value4,
+          List.empty,
+//          Map.empty,
+//          StatusString.parse(c.value5),
+          c.value4.intValue(),
+//          c.value7.toLocalDateTime,
+          c.value5.toLocalDateTime,
+//          Option(c.value9),
+          Option(c.value6).map(_.toLocalDateTime)
+        )
+
+//        id: String,
+//        input: String,
+//        output: String,
+//        transtype: Seq[Task],
+//        priority: Int,
+//        created: LocalDateTime,
+//        finished: Option[LocalDateTime]
+
+      }
+    }
 
   //  object JobStatusMapper extends RecordMapper[Record3[String, String, Status], JobStatus] {
   //    @Override
