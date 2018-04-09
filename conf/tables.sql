@@ -1,12 +1,6 @@
-CREATE DATABASE queue WITH OWNER = "play" ENCODING 'UTF8';
-
-GRANT ALL PRIVILEGES ON DATABASE queue TO "play";
-
-\connect queue play
-
 CREATE TYPE STATUS AS ENUM ('queue', 'process', 'done', 'error');
 
-CREATE TABLE job
+CREATE TABLE IF NOT EXISTS job
 (
   uuid     VARCHAR(256)             NOT NULL,
   created  TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -19,13 +13,13 @@ CREATE TABLE job
   priority INTEGER DEFAULT 0        NOT NULL
 );
 
-CREATE UNIQUE INDEX job_uuid_uindex
+CREATE UNIQUE INDEX IF NOT EXISTS job_uuid_uindex
   ON job (uuid);
 
-CREATE UNIQUE INDEX job_id_uindex
+CREATE UNIQUE INDEX IF NOT EXISTS job_id_uindex
   ON job (id);
 
-CREATE TABLE task
+CREATE TABLE IF NOT EXISTS task
 (
   uuid       VARCHAR(256)                     NOT NULL,
   transtype  VARCHAR(256)                     NOT NULL,
@@ -45,11 +39,11 @@ CREATE TABLE task
   position   INTEGER                          NOT NULL
 );
 
-CREATE UNIQUE INDEX task_uuid_uindex
+CREATE UNIQUE INDEX IF NOT EXISTS task_uuid_uindex
   ON task (uuid);
 
-CREATE UNIQUE INDEX task_id_uindex
+CREATE UNIQUE INDEX IF NOT EXISTS task_id_uindex
   ON task (id);
 
-CREATE INDEX task_job_index
+CREATE INDEX IF NOT EXISTS task_job_index
   ON task (job);

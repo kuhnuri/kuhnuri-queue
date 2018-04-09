@@ -1,7 +1,7 @@
 package services
 
 import java.net.URI
-import java.sql.Connection
+import java.sql.{Connection, ResultSet}
 import java.time.{Clock, Instant, LocalDateTime, ZoneOffset}
 
 import models.Worker
@@ -14,6 +14,7 @@ import play.api.inject.bind
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.{Application, Configuration, Mode}
 
+import scala.collection.mutable
 import scala.io.Source
 
 /**
@@ -86,7 +87,7 @@ class DBQueueSpec extends PlaySpec with GuiceOneAppPerTest with BeforeAndAfterEa
     }
   }
 
-  def withDatabase(block: (Connection) => Unit): Unit = {
+  private def withDatabase(block: (Connection) => Unit): Unit = {
     val connection = database.getConnection()
     try {
       block(connection)
@@ -96,7 +97,7 @@ class DBQueueSpec extends PlaySpec with GuiceOneAppPerTest with BeforeAndAfterEa
   }
 
   "Adding one" should {
-    "insert into DB" in withDatabase { connection =>
+    "insert into DB" in withDatabase { implicit connection =>
       val queue = app.injector.instanceOf[Queue]
       val create = Create(
         "file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap",
@@ -104,37 +105,64 @@ class DBQueueSpec extends PlaySpec with GuiceOneAppPerTest with BeforeAndAfterEa
       )
       queue.add(create)
 
-      val jobRes = connection.prepareStatement(
-        """
-        SELECT count(ID) FROM job;
-        """).executeQuery()
-      jobRes.next()
-      jobRes.getLong(1) mustBe 3
+      val jobRes = map("SELECT count(ID) FROM job",
+        res => 1,
+        res => res.getLong(1))
+      jobRes(1) mustBe 3
 
-      val taskRes = connection.prepareStatement(
-        """
-        SELECT count(ID) FROM task
-        """).executeQuery()
-      taskRes.next()
-      taskRes.getLong(1) mustBe 6
+      val taskRes = map("SELECT count(ID) FROM task",
+        res => 1,
+        res => res.getLong(1))
+      taskRes(1) mustBe 6
     }
   }
 
+  private def list[T](query: String, map: ResultSet => T)(implicit connection: Connection): Seq[T] = {
+    val taskRes = connection.prepareStatement(query).executeQuery()
+    val buf = mutable.Buffer[T]()
+    while (taskRes.next()) {
+      buf += map(taskRes)
+    }
+    buf.toList
+  }
+
+  private def map[K, T](query: String, key: ResultSet => K, value: ResultSet => T)(implicit connection: Connection): Map[K, T] = {
+    val taskRes = connection.prepareStatement(query).executeQuery()
+    val buf = mutable.Buffer[(K, T)]()
+    while (taskRes.next()) {
+      buf += key(taskRes) -> value(taskRes)
+    }
+    buf.toMap
+  }
+
   "Request one" should {
-    "update and return" in withDatabase { connection =>
+    "update and return" in withDatabase { implicit connection =>
       val dispatcher = app.injector.instanceOf[Dispatcher]
       dispatcher.request(List("html5"), worker)
 
-      val taskRes = connection.prepareStatement(
-        """
-        SELECT id, status FROM task ORDER BY id ASC
-        """).executeQuery()
-      taskRes.next()
-      taskRes.getInt(1) mustBe 1
-      taskRes.getString(2) mustBe "process"
-      taskRes.next()
-      taskRes.getInt(1) mustBe 2
-      taskRes.getString(2) mustBe "queue"
+      val taskRes = map("SELECT id, status FROM task",
+        res => res.getInt(1),
+        res => res.getString(2))
+
+      taskRes(1) mustBe "process"
+      taskRes(2) mustBe "queue"
+      taskRes(3) mustBe "queue"
+      taskRes(4) mustBe "queue"
+    }
+
+    "offer second task" in withDatabase { implicit connection =>
+      val dispatcher = app.injector.instanceOf[Dispatcher]
+      dispatcher.request(List("html5", "upload"), worker)
+      dispatcher.request(List("html5", "upload"), worker)
+
+      val taskRes = map("SELECT id, status FROM task",
+        res => res.getInt(1),
+        res => res.getString(2))
+
+      taskRes(1) mustBe "process"
+      taskRes(2) mustBe "queue"
+      taskRes(3) mustBe "process"
+      taskRes(4) mustBe "queue"
     }
   }
 
