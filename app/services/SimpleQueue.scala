@@ -293,18 +293,20 @@ class SimpleQueue @Inject()(ws: WSClient,
     j.created.toEpochSecond(ZoneOffset.UTC).compareTo(k.created.toEpochSecond(ZoneOffset.UTC)) < 0
   }
 
-  override def submit(result: JobResult): Job = {
+  override def submit(result: JobResult): Task = {
     logger.info(s"Submit ${result.task.id}")
     data.get(result.task.job) match {
       case Some(job) => {
         val finished = LocalDateTime.now(clock)
+        var task: Task = null
         val tasks = job.transtype.map { t =>
           if (t.id == result.task.id) {
-            t.copy(
+            task = t.copy(
               output = result.task.output,
               status = result.task.status,
               finished = Some(finished)
             )
+            task
           } else {
             t
           }
@@ -318,7 +320,7 @@ class SimpleQueue @Inject()(ws: WSClient,
         )
         logger.info(s" save ${res}")
         data += res.id -> res
-        res
+        task //res
       }
       case None => throw new IllegalStateException("Unable to find matching Job")
     }

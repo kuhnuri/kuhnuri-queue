@@ -283,20 +283,19 @@ class DBQueue @Inject()(db: Database,
     }
 
   // FIXME this should return a Try or Option
-  override def submit(res: JobResult): Job =
+  override def submit(res: JobResult): Task =
     db.withConnection { connection =>
-      //      logger.info(s"Submit $res")
-      //      val sql = DSL.using(connection, SQLDialect.POSTGRES_9_4)
-      //      val now = OffsetDateTime.now(clock)
-      //      sql
-      //        .update(JOB)
-      //        .set(JOB.STATUS, Status.valueOf(res.job.status.toString))
-      //        .set(JOB.FINISHED, now)
-      //        .where(JOB.UUID.eq(res.job.id))
-      //        .execute()
-      //      logStore.add(res.job.id, res.log)
-      //      res.job
-      null
+        logger.info(s"Submit $res")
+        val sql = DSL.using(connection, SQLDialect.POSTGRES_9_4)
+        val now = OffsetDateTime.now(clock)
+        sql
+          .update(TASK)
+          .set(TASK.STATUS, Status.valueOf(res.task.status.toString))
+          .set(TASK.FINISHED, now)
+          .where(TASK.UUID.eq(res.task.id))
+          .execute()
+        logStore.add(res.task.id, res.log)
+        res.task
     }
 }
 

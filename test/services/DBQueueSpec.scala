@@ -4,8 +4,8 @@ import java.net.URI
 import java.sql.{Connection, ResultSet}
 import java.time.{Clock, Instant, LocalDateTime, ZoneOffset}
 
-import models.Worker
-import models.request.Create
+import models.{StatusString, Worker}
+import models.request.{Create, JobResult}
 import org.scalatest.{BeforeAndAfterEach, TestData}
 import org.scalatestplus.play.PlaySpec
 import org.scalatestplus.play.guice.GuiceOneAppPerTest
@@ -68,6 +68,10 @@ class DBQueueSpec extends PlaySpec with GuiceOneAppPerTest with BeforeAndAfterEa
       super.beforeEach()
     } finally {
       withDatabase { connection =>
+        connection.createStatement.execute(
+          """
+          DELETE FROM job;
+          """)
         connection.createStatement().execute(fixture)
       }
     }
@@ -162,6 +166,23 @@ class DBQueueSpec extends PlaySpec with GuiceOneAppPerTest with BeforeAndAfterEa
       taskRes(1) mustBe "process"
       taskRes(2) mustBe "queue"
       taskRes(3) mustBe "process"
+      taskRes(4) mustBe "queue"
+    }
+
+    "finish first task" in withDatabase { implicit connection =>
+      val dispatcher = app.injector.instanceOf[Dispatcher]
+      val task = dispatcher.request(List("html5", "upload"), worker).get
+      val taskResult = JobResult(task.copy(status = StatusString.Done), List.empty)
+      dispatcher.submit(taskResult)
+      dispatcher.request(List("html5", "upload"), worker)
+
+      val taskRes = map("SELECT id, status FROM task",
+        res => res.getInt(1),
+        res => res.getString(2))
+
+      taskRes(1) mustBe "done"
+      taskRes(2) mustBe "process"
+      taskRes(3) mustBe "queue"
       taskRes(4) mustBe "queue"
     }
   }

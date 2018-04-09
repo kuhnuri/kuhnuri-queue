@@ -22,5 +22,5 @@ trait Dispatcher {
     * @param job completed job
     */
   // TODO this should return a Try or Option
-  def submit(job: JobResult): Job
+  def submit(job: JobResult): Task
 }
