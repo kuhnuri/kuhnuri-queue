@@ -103,28 +103,68 @@ class DBQueue @Inject()(db: Database,
 
   override def contents(): Seq[Job] = {
     db.withConnection { connection =>
-        val sql = DSL.using(connection, SQLDialect.POSTGRES_9_4)
-        val query = //selectJob(sql)
-          sql
-            .select(JOB.UUID, JOB.INPUT, JOB.OUTPUT,
-              //        JOB.TRANSTYPE, JOB.STATUS,
-              JOB.PRIORITY,
-              JOB.CREATED,
-              //        JOB.PROCESSING, JOB.WORKER,
-              JOB.FINISHED)
-            .from(JOB)
-          .orderBy(JOB.CREATED.desc)
-        val res = query
-          .fetch(Mappers.JobMapper)
-          .asScala
-        res
+      val sql = DSL.using(connection, SQLDialect.POSTGRES_9_4)
+      //[string, string, string,int, date, date, status]
+      val query =
+        """
+        SELECT
+          job.uuid,
+          job.input,
+          job.output,
+          job.priority,
+          job.created,
+          job.finished,
+          --   task.uuid,
+          --   task.transtype,
+          --   task.input,
+          --   task.output,
+          CASE
+          WHEN task.error
+            THEN 'error'
+          WHEN task.queue
+            THEN 'queue'
+          WHEN task.done
+            THEN 'done'
+          ELSE 'process'
+          END AS STATUS
+        --   task.id,
+        --   task.processing,
+        --   task.finished,
+        --   task.worker,
+        --   task.job,
+        --   task.position
+        FROM job
+          INNER JOIN (
+                       SELECT
+                         job,
+                         bool_or('error' IN (status))  AS error,
+                         bool_and('queue' IN (status)) AS queue,
+                         bool_and('done' IN (status))  AS done
+                       FROM task
+                       GROUP BY job
+                     ) AS task
+            ON job.id = task.job;""";
+      val res = sql
+        .fetch(query)
+        .asInstanceOf[Result[Record7[String, String, String, Integer, OffsetDateTime, OffsetDateTime, String]]]
+        .map(Mappers.JobMapper)
+        .asScala
+      res
     }
   }
 
   override def get(id: String): Option[Job] =
     db.withConnection { connection =>
       //      val sql = DSL.using(connection, SQLDialect.POSTGRES_9_4)
-      //      val query = selectJob(sql)
+      //      val query = sql
+      //        .select(JOB.UUID, JOB.INPUT, JOB.OUTPUT,
+      //          //        JOB.TRANSTYPE, JOB.STATUS,
+      //          JOB.PRIORITY,
+      //          JOB.CREATED,
+      //          //        JOB.PROCESSING, JOB.WORKER,
+      //          JOB.FINISHED)
+      //        .from(JOB)
+      //        .leftJoin(TASK).on(TASK.JOB.eq(JOB.ID))
       //        .where(JOB.UUID.eq(id))
       //      val res = query
       //        .fetchOne(Mappers.JobMapper)
@@ -292,17 +332,17 @@ class DBQueue @Inject()(db: Database,
   // FIXME this should return a Try or Option
   override def submit(res: JobResult): Task =
     db.withConnection { connection =>
-        logger.info(s"Submit $res")
-        val sql = DSL.using(connection, SQLDialect.POSTGRES_9_4)
-        val now = OffsetDateTime.now(clock)
-        sql
-          .update(TASK)
-          .set(TASK.STATUS, Status.valueOf(res.task.status.toString))
-          .set(TASK.FINISHED, now)
-          .where(TASK.UUID.eq(res.task.id))
-          .execute()
-        logStore.add(res.task.id, res.log)
-        res.task
+      logger.info(s"Submit $res")
+      val sql = DSL.using(connection, SQLDialect.POSTGRES_9_4)
+      val now = OffsetDateTime.now(clock)
+      sql
+        .update(TASK)
+        .set(TASK.STATUS, Status.valueOf(res.task.status.toString))
+        .set(TASK.FINISHED, now)
+        .where(TASK.UUID.eq(res.task.id))
+        .execute()
+      logStore.add(res.task.id, res.log)
+      res.task
     }
 }
 
@@ -310,34 +350,35 @@ private object Mappers {
   type ReviewStatus = String
   type CommentError = String
 
-    object JobMapper extends RecordMapper[Record6[String, String, String, /*String, Status, */Integer, OffsetDateTime,/* OffsetDateTime, String,*/ OffsetDateTime], Job] {
-      @Override
-      def map(c: Record6[String, String, String, /*String, Status, */Integer, OffsetDateTime, /*OffsetDateTime, String,*/ OffsetDateTime]): Job = {
-        Job(
-          c.value1,
-          c.value2,
-          c.value3,
-//          c.value4,
-          List.empty,
-//          Map.empty,
-//          StatusString.parse(c.value5),
-          c.value4.intValue(),
-//          c.value7.toLocalDateTime,
-          c.value5.toLocalDateTime,
-//          Option(c.value9),
-          Option(c.value6).map(_.toLocalDateTime)
-        )
+  object JobMapper extends RecordMapper[Record7[String, String, String, /*String, Status, */ Integer, OffsetDateTime, /* OffsetDateTime, String,*/ OffsetDateTime, String], Job] {
+    @Override
+    def map(c: Record7[String, String, String, /*String, Status, */ Integer, OffsetDateTime, /*OffsetDateTime, String,*/ OffsetDateTime, String]): Job = {
+      Job(
+        c.value1,
+        c.value2,
+        c.value3,
+        //          c.value4,
+        List.empty,
+        //          Map.empty,
+        //          StatusString.parse(c.value5),
+        c.value4.intValue(),
+        //          c.value7.toLocalDateTime,
+        c.value5.toLocalDateTime,
+        //          Option(c.value9),
+        Option(c.value6).map(_.toLocalDateTime),
+        StatusString.parse(c.value7)
+      )
 
-//        id: String,
-//        input: String,
-//        output: String,
-//        transtype: Seq[Task],
-//        priority: Int,
-//        created: LocalDateTime,
-//        finished: Option[LocalDateTime]
+      //        id: String,
+      //        input: String,
+      //        output: String,
+      //        transtype: Seq[Task],
+      //        priority: Int,
+      //        created: LocalDateTime,
+      //        finished: Option[LocalDateTime]
 
-      }
     }
+  }
 
   //  object JobStatusMapper extends RecordMapper[Record3[String, String, Status], JobStatus] {
   //    @Override

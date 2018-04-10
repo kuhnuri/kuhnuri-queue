@@ -24,26 +24,26 @@ class SimpleQueue @Inject()(ws: WSClient,
   private val timeout = Duration.ofMillis(configuration.getMillis("queue.timeout"))
 
   private val dummyData: Map[String, Job] = List(
-//    Job("id-demo",
-//      "file:/opt/workspace/Downloads/dita-demo-content-collection/Thunderbird/en-US/maps/User_Guide.ditamap",
-//      "file:/opt/workspace/Downloads/dita-demo-content-collection/Thunderbird/en-US/out/",
-//      List(
-//        Task("id-demo_1",
-//          "id-demo",
-//          None,
-//          None,
-//          "html5",
-//          Map.empty,
-//          StatusString.Queue,
-//          None,
-//          None,
-//          None
-//        )
-//      ),
-//      0,
-//      LocalDateTime.now(clock).minusHours(3),
-//      None
-//    ),
+    //    Job("id-demo",
+    //      "file:/opt/workspace/Downloads/dita-demo-content-collection/Thunderbird/en-US/maps/User_Guide.ditamap",
+    //      "file:/opt/workspace/Downloads/dita-demo-content-collection/Thunderbird/en-US/out/",
+    //      List(
+    //        Task("id-demo_1",
+    //          "id-demo",
+    //          None,
+    //          None,
+    //          "html5",
+    //          Map.empty,
+    //          StatusString.Queue,
+    //          None,
+    //          None,
+    //          None
+    //        )
+    //      ),
+    //      0,
+    //      LocalDateTime.now(clock).minusHours(3),
+    //      None
+    //    ),
     //    Job("dita-ot",
     //      "file:/opt/workspace/Work/dita-ot/src/main/docsrc/userguide.ditamap",
     //      "file:/opt/workspace/Work/dita-ot/src/main/docsrc/out/html5/",
@@ -213,14 +213,16 @@ class SimpleQueue @Inject()(ws: WSClient,
     data.values.foreach { job =>
       val task = job.transtype.find(_.id == update.id)
       if (task.isDefined) {
-        val res = job.copy(
-          transtype = job.transtype.map { task =>
-            if (task.id == update.id) {
-              task.copy(status = update.status.getOrElse(task.status))
-            } else {
-              task
-            }
+        val tasks = job.transtype.map { task =>
+          if (task.id == update.id) {
+            task.copy(status = update.status.getOrElse(task.status))
+          } else {
+            task
           }
+        }
+        val res = job.copy(
+          transtype = tasks,
+          status = getStatus(tasks)
         )
         data += res.id -> res
         return task
@@ -313,10 +315,12 @@ class SimpleQueue @Inject()(ws: WSClient,
         }
         val jobFinished = if (tasks.last.finished.isDefined) Some(finished) else None
         val jobOutput = if (tasks.last.id == result.task.id) tasks.last.output.get else job.output
+        val jobStatus: StatusString = getStatus(tasks)
         val res: Job = job.copy(
           transtype = tasks,
           finished = jobFinished,
-          output = jobOutput
+          output = jobOutput,
+          status = jobStatus
         )
         logger.info(s" save ${res}")
         data += res.id -> res
@@ -325,6 +329,12 @@ class SimpleQueue @Inject()(ws: WSClient,
       case None => throw new IllegalStateException("Unable to find matching Job")
     }
   }
+
+  private def getStatus(tasks: Seq[Task]): StatusString =
+    if (tasks.forall(_.status == StatusString.Queue)) StatusString.Queue
+    else if (tasks.forall(_.status == StatusString.Done)) StatusString.Done
+    else if (tasks.exists(_.status == StatusString.Error)) StatusString.Error
+    else StatusString.Process
 }
 
 

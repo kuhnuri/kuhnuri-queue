@@ -54,7 +54,7 @@ class SimpleQueueSpec extends FlatSpec with Matchers with BeforeAndAfter {
       List(
         Task("id-A_1", "id-A", None, None, "html5", Map.empty, StatusString.Queue, None, None, None)
       ),
-      0, queue.now.minusHours(1), None)
+      0, queue.now.minusHours(1), None, StatusString.Queue)
 
     queue.request(List("html5"), worker) match {
       case Some(res) => {
@@ -78,7 +78,7 @@ class SimpleQueueSpec extends FlatSpec with Matchers with BeforeAndAfter {
           Some(queue.now.minusMinutes(10)), Some("worker-id"), Some(queue.now.minusMinutes(1))),
         Task("id-A_2", "id-A", None, None, "upload", Map.empty, StatusString.Queue, None, None, None)
       ),
-      0, queue.now.minusHours(1), None)
+      0, queue.now.minusHours(1), None, StatusString.Process)
 
     queue.request(List("upload"), worker) match {
       case Some(res) => {
@@ -101,7 +101,7 @@ class SimpleQueueSpec extends FlatSpec with Matchers with BeforeAndAfter {
           Some("file:/Volumes/tmp/out/"), "html5", Map.empty, StatusString.Process,
           Some(queue.now), Some("worker-id"), None)
       ),
-      0, queue.now.minusHours(1), None)
+      0, queue.now.minusHours(1), None, StatusString.Process)
 
     val res = Task("id-A_1", "id-A", Some("file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap"),
       Some("file:/Volumes/tmp/out/userguide.zip"), "html5", Map.empty, StatusString.Done,
@@ -126,7 +126,7 @@ class SimpleQueueSpec extends FlatSpec with Matchers with BeforeAndAfter {
           Some(queue.now), Some("worker-id"), None),
         Task("id-A_2", "id-A", None, None, "upload", Map.empty, StatusString.Queue, None, None, None)
       ),
-      0, queue.now.minusHours(1), None)
+      0, queue.now.minusHours(1), None, StatusString.Process)
 
     val res = Task("id-A_1", "id-A", Some("file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap"),
       Some("file:/Volumes/tmp/out/userguide.zip"), "html5", Map.empty, StatusString.Process,

@@ -20,7 +20,8 @@ sealed case class Job(id: String,
                       transtype: Seq[Task],
                       priority: Int,
                       created: LocalDateTime,
-                      finished: Option[LocalDateTime])
+                      finished: Option[LocalDateTime],
+                      status: StatusString)
 
 object Job {
 
@@ -36,7 +37,8 @@ object Job {
       (JsPath \ "transtype").write[Seq[Task]] and
       (JsPath \ "priority").write[Int] and
       (JsPath \ "created").write[LocalDateTime] and
-      (JsPath \ "finished").writeNullable[LocalDateTime]
+      (JsPath \ "finished").writeNullable[LocalDateTime] and
+      (JsPath \ "status").write[StatusString]
     ) (unlift(Job.unapply _))
   implicit val jobReads: Reads[Job] = (
     (JsPath \ "id").read[String] and
@@ -47,7 +49,8 @@ object Job {
       (JsPath \ "transtype").read[Seq[Task]] and
       (JsPath \ "priority").read[Int] and
       (JsPath \ "created").read[LocalDateTime] and
-      (JsPath \ "finished").readNullable[LocalDateTime]
+      (JsPath \ "finished").readNullable[LocalDateTime] and
+      (JsPath \ "status").read[StatusString]
     ) (Job.apply _)
 
 }

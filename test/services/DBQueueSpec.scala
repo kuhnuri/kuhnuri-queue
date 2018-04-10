@@ -4,8 +4,8 @@ import java.net.URI
 import java.sql.{Connection, ResultSet}
 import java.time.{Clock, Instant, LocalDateTime, ZoneOffset}
 
-import models.{StatusString, Worker}
 import models.request.{Create, JobResult}
+import models.{StatusString, Worker}
 import org.scalatest.{BeforeAndAfterEach, TestData}
 import org.scalatestplus.play.PlaySpec
 import org.scalatestplus.play.guice.GuiceOneAppPerTest
@@ -68,10 +68,6 @@ class DBQueueSpec extends PlaySpec with GuiceOneAppPerTest with BeforeAndAfterEa
       super.beforeEach()
     } finally {
       withDatabase { connection =>
-        connection.createStatement.execute(
-          """
-          DELETE FROM job;
-          """)
         connection.createStatement().execute(fixture)
       }
     }
@@ -112,19 +108,27 @@ class DBQueueSpec extends PlaySpec with GuiceOneAppPerTest with BeforeAndAfterEa
       val jobRes = map("SELECT count(ID) FROM job",
         res => 1,
         res => res.getLong(1))
-      jobRes(1) mustBe 3
+      jobRes(1) mustBe 5
 
       val taskRes = map("SELECT count(ID) FROM task",
         res => 1,
         res => res.getLong(1))
-      taskRes(1) mustBe 6
+      taskRes(1) mustBe 10
     }
 
-    "list contents"  in withDatabase { implicit connection =>
+    "list contents" in withDatabase { implicit connection =>
       val queue = app.injector.instanceOf[Queue]
       val contents = queue.contents()
 
-      contents.size mustBe 2
+      contents.size mustBe 4
+      contents(0).id mustBe "a"
+      contents(0).status mustBe StatusString.Queue
+      contents(1).id mustBe "b"
+      contents(1).status mustBe StatusString.Process
+      contents(2).id mustBe "c"
+      contents(2).status mustBe StatusString.Process
+      contents(3).id mustBe "d"
+      contents(3).status mustBe StatusString.Error
     }
   }
 
@@ -157,7 +161,7 @@ class DBQueueSpec extends PlaySpec with GuiceOneAppPerTest with BeforeAndAfterEa
 
       taskRes(1) mustBe "process"
       taskRes(2) mustBe "queue"
-      taskRes(3) mustBe "queue"
+      taskRes(3) mustBe "process"
       taskRes(4) mustBe "queue"
     }
 
@@ -189,7 +193,7 @@ class DBQueueSpec extends PlaySpec with GuiceOneAppPerTest with BeforeAndAfterEa
 
       taskRes(1) mustBe "done"
       taskRes(2) mustBe "process"
-      taskRes(3) mustBe "queue"
+      taskRes(3) mustBe "process"
       taskRes(4) mustBe "queue"
     }
   }

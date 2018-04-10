@@ -31,7 +31,8 @@ sealed case class Create(input: String, output: String, transtype: Seq[String], 
       ),
       priority.getOrElse(0),
       LocalDateTime.now(ZoneOffset.UTC),
-      None)
+      None,
+      StatusString.Queue)
   }
 }
 
