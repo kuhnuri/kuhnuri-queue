@@ -9,6 +9,7 @@ import play.api.libs.json.Reads._
 import play.api.libs.json._
 
 sealed case class Create(input: String, output: String, transtype: Seq[String], priority: Option[Int], params: Map[String, String]) {
+  @Deprecated
   def toJob: Job = {
     val id = UUID.randomUUID().toString
 

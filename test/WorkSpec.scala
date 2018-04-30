@@ -1,8 +1,10 @@
 import java.time.{Clock, Instant, LocalDateTime, ZoneOffset}
 
 import filters.TokenAuthorizationFilter.AUTH_TOKEN_HEADER
-import org.scalatest.TestData
+import models.{Job, StatusString, Task}
+import org.scalatest.{BeforeAndAfter, TestData}
 import org.scalatestplus.play._
+import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import play.api.Application
 import play.api.inject.bind
 import play.api.inject.guice.GuiceApplicationBuilder
@@ -16,12 +18,12 @@ import services.{Dispatcher, DummyQueue}
   * You can mock out a whole application including requests, plugins etc.
   * For more information, consult the wiki.
   */
-class WorkSpec extends PlaySpec with OneAppPerTest {
+class WorkSpec extends PlaySpec with GuiceOneAppPerSuite with BeforeAndAfter {
 
   private val clock: Clock = Clock.fixed(Instant.now(), ZoneOffset.UTC.normalized())
   private val now = LocalDateTime.now(clock).atOffset(ZoneOffset.UTC)
 
-  implicit override def newAppForTest(testData: TestData): Application = new GuiceApplicationBuilder()
+  implicit override lazy val app = new GuiceApplicationBuilder()
     .configure(Map(
       "queue.timeout" -> "10m",
       "queue.users" -> List(Map(
@@ -34,6 +36,12 @@ class WorkSpec extends PlaySpec with OneAppPerTest {
       bind(classOf[Clock]).to(clock)
     )
     .build()
+
+  val queue = app.injector.instanceOf[Dispatcher].asInstanceOf[DummyQueue]
+
+  after {
+    queue.data.clear()
+  }
 
   "WorkController" should {
 
@@ -54,6 +62,14 @@ class WorkSpec extends PlaySpec with OneAppPerTest {
     }
 
     "return job" in {
+      queue.data += "id-A" -> Job("id-A",
+        "file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap",
+        "file:/Volumes/tmp/out/",
+        List(
+          Task("id-A_1", "id-A", None, None, "html5", Map.empty, StatusString.Queue, None, None, None)
+        ),
+        0, queue.now.minusHours(1), None, StatusString.Queue)
+
       val query = JsArray(List(
         JsString("html5")
       ))
@@ -65,14 +81,12 @@ class WorkSpec extends PlaySpec with OneAppPerTest {
       status(first) mustBe OK
       contentType(first) mustBe Some("application/json")
       contentAsJson(first) mustEqual JsObject(Map(
-        "created" -> JsString(now.minusHours(2).toString),
-        //        "finished" -> JsNull,
-        "id" -> JsString("id-A1"),
+        "id" -> JsString("id-A_1"),
+        "job" -> JsString("id-A"),
         "input" -> JsString("file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap"),
         "output" -> JsString("file:/Volumes/tmp/out/"),
         "transtype" -> JsString("html5"),
         "params" -> JsObject(List.empty),
-        "priority" -> JsNumber(0),
         "processing" -> JsString(now.toString),
         "worker" -> JsString("worker"),
         "status" -> JsString("process")
@@ -80,6 +94,14 @@ class WorkSpec extends PlaySpec with OneAppPerTest {
     }
 
     "return job again" in {
+      queue.data += "id-A" -> Job("id-A",
+        "file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap",
+        "file:/Volumes/tmp/out/",
+        List(
+          Task("id-A_1", "id-A", None, None, "html5", Map.empty, StatusString.Queue, None, None, None)
+        ),
+        0, queue.now.minusHours(1), None, StatusString.Queue)
+
       val query = JsArray(List(
         JsString("html5")
       ))
@@ -91,14 +113,12 @@ class WorkSpec extends PlaySpec with OneAppPerTest {
       status(second) mustBe OK
       contentType(second) mustBe Some("application/json")
       contentAsJson(second) mustEqual JsObject(Map(
-        "created" -> JsString(now.minusHours(2).toString),
-        //        "finished" -> JsNull,
-        "id" -> JsString("id-A1"),
+        "id" -> JsString("id-A_1"),
+        "job" -> JsString("id-A"),
         "input" -> JsString("file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap"),
         "output" -> JsString("file:/Volumes/tmp/out/"),
         "transtype" -> JsString("html5"),
         "params" -> JsObject(List.empty),
-        "priority" -> JsNumber(0),
         "processing" -> JsString(now.toString),
         "worker" -> JsString("worker"),
         "status" -> JsString("process")
@@ -107,33 +127,7 @@ class WorkSpec extends PlaySpec with OneAppPerTest {
       route(app, FakeRequest(POST, "/api/v1/work")
         .withJsonBody(query)
         .withHeaders(AUTH_TOKEN_HEADER -> token)
-      ).map(status) mustBe Some(OK) // This should be NO_CONTENT
-    }
-
-    "return PDF job" in {
-      val query = JsArray(List(
-        JsString("pdf")
-      ))
-      val home = route(app, FakeRequest(POST, "/api/v1/work")
-        .withJsonBody(query)
-        .withHeaders(AUTH_TOKEN_HEADER -> token)
-      ).get
-
-      status(home) mustBe OK
-      contentType(home) mustBe Some("application/json")
-      contentAsJson(home) mustEqual JsObject(Map(
-        "created" -> JsString(now.toString),
-        //        "finished" -> JsNull,
-        "id" -> JsString("id-B"),
-        "input" -> JsString("file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap"),
-        "output" -> JsString("file:/Volumes/tmp/out/"),
-        "transtype" -> JsString("pdf"),
-        "params" -> JsObject(List.empty),
-        "priority" -> JsNumber(0),
-        "processing" -> JsString(now.toString),
-        "worker" -> JsString("worker"),
-        "status" -> JsString("process")
-      ))
+      ).map(status) mustBe Some(NO_CONTENT)
     }
 
     "return XHTML job" in {
@@ -146,78 +140,8 @@ class WorkSpec extends PlaySpec with OneAppPerTest {
         .withHeaders(AUTH_TOKEN_HEADER -> token)
       ).get
 
-      val text = contentAsString(home)
-
       status(home) mustBe NO_CONTENT
     }
   }
-
-  //  "ListController" should {
-  //
-  //    "list jobs" in {
-  //      val home = route(app, FakeRequest(GET, "/api/v1/jobs")).get
-  //
-  //      status(home) mustBe OK
-  //      contentType(home) mustBe Some("application/json")
-  //      sortById(contentAsJson(home)) mustEqual JsArray(Seq(
-  //        JsObject(Map(
-  //          "id" -> JsString("id-A"),
-  //          "input" -> JsString("file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap"),
-  //          "output" -> JsString("file:/Volumes/tmp/out"),
-  //          "transtype" -> JsString("html5"),
-  //          "params" -> JsObject(List.empty)
-  //        )),
-  //        JsObject(Map(
-  //          "id" -> JsString("id-B"),
-  //          "input" -> JsString("file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap"),
-  //          "output" -> JsString("file:/Volumes/tmp/out"),
-  //          "transtype" -> JsString("pdf"),
-  //          "params" -> JsObject(List.empty)
-  //        )
-  //        )))
-  //    }
-  //
-  //    "show job details" in {
-  //      val home = route(app, FakeRequest(GET, "/api/v1/job/id-B")).get
-  //
-  //      status(home) mustBe OK
-  //      contentType(home) mustBe Some("application/json")
-  //      contentAsJson(home) mustEqual JsObject(Map(
-  //        "id" -> JsString("id-B"),
-  //        "output" -> JsString("file:/Volumes/tmp/out"),
-  //        "status" -> JsString(Queue.toString)
-  //      ))
-  //    }
-  //
-  //    "send 404 on a missing job" in {
-  //      route(app, FakeRequest(GET, "/api/v1/job/X")).map(status(_)) mustBe Some(NOT_FOUND)
-  //    }
-  //
-  //    "add new job" should {
-  //
-  //      "add" in {
-  //        val body = JsObject(Map(
-  //          "input" -> JsString("file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap"),
-  //          "output" -> JsString("file:/Volumes/tmp/out"),
-  //          "transtype" -> JsString("html5"),
-  //          "params" -> JsObject(List.empty)
-  //        ))
-  //        val created = route(app, FakeRequest(POST, "/api/v1/job").withJsonBody(body)).get
-  //
-  //        status(created) mustBe CREATED
-  //        contentType(created) mustBe Some("application/json")
-  //        //        contentAsJson(created) mustEqual JsObject(Map(
-  //        //            "id" -> JsString("id-A"),
-  //        //            "input" -> JsString("file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap"),
-  //        //            "output" -> JsString("file:/Volumes/tmp/out"),
-  //        //            "transtype" -> JsString("html5"),
-  //        //            "params" -> JsObject(List.empty)
-  //        //          ))
-  //
-  //        val res = route(app, FakeRequest(GET, "/api/v1/jobs")).map(contentAsJson(_)).get.as[JsArray]
-  //        res.value.size mustBe 3
-  //      }
-  //    }
-  //  }
 
 }

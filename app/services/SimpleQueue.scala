@@ -1,6 +1,7 @@
 package services
 
 import java.time.{Clock, Duration, LocalDateTime, ZoneOffset}
+import java.util.UUID
 
 import akka.actor.ActorSystem
 import filters.TokenAuthorizationFilter.AUTH_TOKEN_HEADER
@@ -31,7 +32,7 @@ class SimpleQueue @Inject()(ws: WSClient,
     * Return stale tasks back to queue.
     */
   private def checkQueue(): Unit = {
-    //    logger.debug("Check stale jobs")
+    logger.debug("Check stale jobs")
     data.values
       .filter(hasJobTimedOut)
       .foreach { job =>
@@ -72,7 +73,7 @@ class SimpleQueue @Inject()(ws: WSClient,
   private def pingWorker(task: Task): Boolean = {
     WorkerStore.workers.get(task.worker.get).map { worker =>
       val workerUri = worker.uri.resolve("api/v1/status")
-      //      logger.debug(s"Check worker status: ${workerUri}")
+      logger.debug(s"Check worker status: ${workerUri}")
       val req: Future[Boolean] = ws.url(workerUri.toString)
         .addHttpHeaders(AUTH_TOKEN_HEADER -> worker.token)
         .withRequestTimeout(10000.millis)
@@ -93,7 +94,29 @@ class SimpleQueue @Inject()(ws: WSClient,
   override def log(id: String, offset: Int): Option[Seq[String]] = ???
 
   override def add(newJob: Create): Job = {
-    val job = newJob.toJob
+    val id = UUID.randomUUID().toString
+    val job = Job(
+      id,
+      newJob.input,
+      newJob.output,
+      newJob.transtype.map(t =>
+        Task(
+          UUID.randomUUID().toString,
+          id,
+          None,
+          None,
+          t,
+          newJob.params,
+          StatusString.Queue,
+          None,
+          None,
+          None)
+      ),
+      newJob.priority.getOrElse(0),
+      LocalDateTime.now(clock),
+      None,
+      StatusString.Queue)
+
     data += job.id -> job
     job
   }

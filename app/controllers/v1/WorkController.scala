@@ -20,7 +20,6 @@ class WorkController @Inject()(dispatcher: Dispatcher, cc: ControllerComponents)
   private val logger = Logger(this.getClass)
 
   def request = Action.async { request =>
-    logger.debug("request: " + request.body.asText)
     request.body.asJson.map { json =>
       json.validate[List[String]].map {
         case req: List[String] => {
