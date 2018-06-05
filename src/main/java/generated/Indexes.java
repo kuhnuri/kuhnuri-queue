@@ -4,7 +4,8 @@
 package generated;
 
 
-import generated.tables.Queue;
+import generated.tables.Job;
+import generated.tables.Task;
 
 import javax.annotation.Generated;
 
@@ -30,15 +31,25 @@ public class Indexes {
     // INDEX definitions
     // -------------------------------------------------------------------------
 
-    public static final Index QUEUE_ID_UINDEX = Indexes0.QUEUE_ID_UINDEX;
-    public static final Index TABLE_NAME_ID_UINDEX = Indexes0.TABLE_NAME_ID_UINDEX;
+    public static final Index JOB_ID_PK = Indexes0.JOB_ID_PK;
+    public static final Index JOB_ID_UINDEX = Indexes0.JOB_ID_UINDEX;
+    public static final Index JOB_UUID_UINDEX = Indexes0.JOB_UUID_UINDEX;
+    public static final Index TASK_ID_PK = Indexes0.TASK_ID_PK;
+    public static final Index TASK_ID_UINDEX = Indexes0.TASK_ID_UINDEX;
+    public static final Index TASK_JOB_INDEX = Indexes0.TASK_JOB_INDEX;
+    public static final Index TASK_UUID_UINDEX = Indexes0.TASK_UUID_UINDEX;
 
     // -------------------------------------------------------------------------
     // [#1459] distribute members to avoid static initialisers > 64kb
     // -------------------------------------------------------------------------
 
     private static class Indexes0 {
-        public static Index QUEUE_ID_UINDEX = Internal.createIndex("queue_id_uindex", Queue.QUEUE, new OrderField[] { Queue.QUEUE.ID }, true);
-        public static Index TABLE_NAME_ID_UINDEX = Internal.createIndex("table_name_id_uindex", Queue.QUEUE, new OrderField[] { Queue.QUEUE.UUID }, true);
+        public static Index JOB_ID_PK = Internal.createIndex("job_id_pk", Job.JOB, new OrderField[] { Job.JOB.ID }, true);
+        public static Index JOB_ID_UINDEX = Internal.createIndex("job_id_uindex", Job.JOB, new OrderField[] { Job.JOB.ID }, true);
+        public static Index JOB_UUID_UINDEX = Internal.createIndex("job_uuid_uindex", Job.JOB, new OrderField[] { Job.JOB.UUID }, true);
+        public static Index TASK_ID_PK = Internal.createIndex("task_id_pk", Task.TASK, new OrderField[] { Task.TASK.ID }, true);
+        public static Index TASK_ID_UINDEX = Internal.createIndex("task_id_uindex", Task.TASK, new OrderField[] { Task.TASK.ID }, true);
+        public static Index TASK_JOB_INDEX = Internal.createIndex("task_job_index", Task.TASK, new OrderField[] { Task.TASK.JOB }, false);
+        public static Index TASK_UUID_UINDEX = Internal.createIndex("task_uuid_uindex", Task.TASK, new OrderField[] { Task.TASK.UUID }, true);
     }
 }

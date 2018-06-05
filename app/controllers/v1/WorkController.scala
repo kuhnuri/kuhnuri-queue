@@ -20,7 +20,6 @@ class WorkController @Inject()(dispatcher: Dispatcher, cc: ControllerComponents)
   private val logger = Logger(this.getClass)
 
   def request = Action.async { request =>
-    logger.debug("request: " + request.body.asText)
     request.body.asJson.map { json =>
       json.validate[List[String]].map {
         case req: List[String] => {
@@ -55,7 +54,7 @@ class WorkController @Inject()(dispatcher: Dispatcher, cc: ControllerComponents)
         case res: JobResult => {
 //          logger.debug("  job result " + res)
           val worker = request.attrs(WORKER_ATTR)
-          val submitter: String = res.job.worker.getOrElse(null)
+          val submitter: String = res.task.worker.getOrElse(null)
           if (submitter == worker.id) {
 //            logger.debug("Submit work for " + res.job)
             Future {

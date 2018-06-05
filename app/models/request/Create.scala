@@ -3,24 +3,38 @@ package models.request
 import java.time.{LocalDateTime, ZoneOffset}
 import java.util.UUID
 
-import models.{Job, StatusString}
+import models.{Job, StatusString, Task}
 import play.api.libs.functional.syntax._
 import play.api.libs.json.Reads._
 import play.api.libs.json._
 
-sealed case class Create(input: String, output: String, transtype: String, priority: Option[Int], params: Map[String, String]) {
-  def toJob: Job =
+sealed case class Create(input: String, output: String, transtype: Seq[String], priority: Option[Int], params: Map[String, String]) {
+  @Deprecated
+  def toJob: Job = {
+    val id = UUID.randomUUID().toString
+
     Job(
-      UUID.randomUUID().toString,
+      id,
       this.input,
       this.output,
-      this.transtype,
-      this.params,
-      StatusString.Queue, priority.getOrElse(0),
+      this.transtype.map(t =>
+        Task(
+          UUID.randomUUID().toString,
+          id,
+          None,
+          None,
+          t,
+          this.params,
+          StatusString.Queue,
+          None,
+          None,
+          None)
+      ),
+      priority.getOrElse(0),
       LocalDateTime.now(ZoneOffset.UTC),
       None,
-      None,
-      None)
+      StatusString.Queue)
+  }
 }
 
 object Create {
@@ -30,7 +44,7 @@ object Create {
       (JsPath \ "output").read[String] /*.filter(_.map {
         new URI(_).isAbsolute
       }.getOrElse(true))*/ and
-      (JsPath \ "transtype").read[String] and
+      (JsPath \ "transtype").read[Seq[String]] and
       (JsPath \ "priority").readNullable[Int] and
       (JsPath \ "params").read[Map[String, String]]
     ) (Create.apply _)
