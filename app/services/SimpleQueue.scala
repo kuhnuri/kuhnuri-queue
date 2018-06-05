@@ -1,5 +1,9 @@
 package services
 
+import java.io.IOException
+import java.nio.charset.StandardCharsets.UTF_8
+import java.nio.file.{Files, Paths}
+import java.nio.file.StandardOpenOption.CREATE
 import java.time.{Clock, Duration, LocalDateTime, ZoneOffset}
 import java.util.UUID
 
@@ -7,7 +11,9 @@ import akka.actor.ActorSystem
 import filters.TokenAuthorizationFilter.AUTH_TOKEN_HEADER
 import javax.inject.{Inject, Singleton}
 import models._
+import models.Job._
 import models.request.{Create, JobResult}
+import play.api.libs.json.{JsError, Json}
 import play.api.libs.ws.WSClient
 import play.api.{Configuration, Logger, http}
 
@@ -23,8 +29,9 @@ class SimpleQueue @Inject()(ws: WSClient,
 
   private val logger = Logger(this.getClass)
   private val timeout = Duration.ofMillis(configuration.getMillis("queue.timeout"))
+  private val stateFile = Paths.get(configuration.get[String]("queue.temp"), "queue.json")
 
-  val data: mutable.Map[String, Job] = mutable.Map()
+  val data: mutable.Map[String, Job] = load()
 
   actorSystem.scheduler.schedule(initialDelay = 10.seconds, interval = 1.minutes)(checkQueue)
 
@@ -50,6 +57,7 @@ class SimpleQueue @Inject()(ws: WSClient,
           }
         )
         data += res.id -> res
+        persist()
       }
   }
 
@@ -118,6 +126,7 @@ class SimpleQueue @Inject()(ws: WSClient,
       StatusString.Queue)
 
     data += job.id -> job
+    persist()
     job
   }
 
@@ -137,6 +146,7 @@ class SimpleQueue @Inject()(ws: WSClient,
           status = getStatus(tasks)
         )
         data += res.id -> res
+        persist()
         return task
       }
     }
@@ -192,6 +202,7 @@ class SimpleQueue @Inject()(ws: WSClient,
               transtype = tasks
             )
             data += res.id -> res
+            persist()
             Some(resTask)
           }
           case None => None
@@ -236,9 +247,46 @@ class SimpleQueue @Inject()(ws: WSClient,
         )
         logger.info(s" save ${res}")
         data += res.id -> res
+        persist()
         task //res
       }
       case None => throw new IllegalStateException("Unable to find matching Job")
+    }
+  }
+
+  protected def persist(): Unit = {
+    val out = Files.newBufferedWriter(stateFile, UTF_8, CREATE)
+    try {
+      out.write(Json.toJson(data).toString())
+    } catch {
+      case e: IOException => {
+        logger.error("Failed to persist queue state", e)
+      }
+    } finally {
+      out.close()
+    }
+  }
+
+  protected def load(): mutable.Map[String, Job] = {
+    val in = Files.newInputStream(stateFile)
+    try {
+      Json.parse(in).validate[Map[String, Job]].map {
+        case req: Map[String, Job] => {
+          mutable.Map(req.toSeq: _*)
+        }
+      }.recoverTotal {
+        e => {
+          logger.error("Detected error A:" + JsError.toJson(e))
+          mutable.Map[String, Job]()
+        }
+      }
+    } catch {
+      case e: IOException => {
+        logger.error("Failed to persist queue state", e)
+        mutable.Map[String, Job]()
+      }
+    } finally {
+      in.close()
     }
   }
 
