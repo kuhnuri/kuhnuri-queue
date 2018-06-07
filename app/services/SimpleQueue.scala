@@ -268,6 +268,7 @@ class SimpleQueue @Inject()(ws: WSClient,
   }
 
   protected def load(): mutable.Map[String, Job] = {
+    logger.info(s"Read ${stateFile}")
     val in = Files.newInputStream(stateFile)
     try {
       Json.parse(in).validate[Map[String, Job]].map {
@@ -276,13 +277,13 @@ class SimpleQueue @Inject()(ws: WSClient,
         }
       }.recoverTotal {
         e => {
-          logger.error("Detected error A:" + JsError.toJson(e))
+          logger.error("Failed to read queue state:" + JsError.toJson(e))
           mutable.Map[String, Job]()
         }
       }
     } catch {
       case e: IOException => {
-        logger.error("Failed to persist queue state", e)
+        logger.error("Failed to read queue state file", e)
         mutable.Map[String, Job]()
       }
     } finally {
