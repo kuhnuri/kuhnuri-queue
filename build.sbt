@@ -1,4 +1,6 @@
-name := """com.elovirta.kuhnuri.queue"""
+organization := """com.elovirta.kuhnuri"""
+
+name := """queue"""
 
 version := "1.0-SNAPSHOT"
 
