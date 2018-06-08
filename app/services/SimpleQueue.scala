@@ -220,6 +220,7 @@ class SimpleQueue @Inject()(ws: WSClient,
 
   override def submit(result: JobResult): Task = {
     logger.info(s"Submit ${result.task.id}")
+    logger.debug(result.toString)
     data.get(result.task.job) match {
       case Some(job) => {
         val finished = LocalDateTime.now(clock)
@@ -290,6 +291,8 @@ class SimpleQueue @Inject()(ws: WSClient,
       } finally {
         in.close()
       }
+    } else {
+      mutable.Map.empty
     }
   }
 
