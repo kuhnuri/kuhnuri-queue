@@ -35,30 +35,30 @@
   <!--logger name="org.jooq" level="INFO" /-->
 
   <logger name="services.DBQueue" level="INFO">
-    <appender-ref ref="STDOUT" />
+    <appender-ref ref="ASYNCFILE" />
   </logger>
   <logger name="services.SimpleQueue" level="INFO">
-    <appender-ref ref="STDOUT" />
+    <appender-ref ref="ASYNCFILE" />
   </logger>
 
   <logger name="controllers.v1.ListController" level="INFO">
-    <appender-ref ref="STDOUT" />
+    <appender-ref ref="ASYNCFILE" />
   </logger>
 
   <logger name="controllers.v1.WorkController" level="DEBUG">
-    <appender-ref ref="STDOUT" />
+    <appender-ref ref="ASYNCFILE" />
   </logger>
 
   <logger name="services.SimpleLogStore" level="INFO">
-    <appender-ref ref="STDOUT" />
+    <appender-ref ref="ASYNCFILE" />
   </logger>
 
   <logger name="controllers.v1.AuthenticationController" level="INFO">
-    <appender-ref ref="STDOUT" />
+    <appender-ref ref="ASYNCFILE" />
   </logger>
 
   <logger name="filters.TokenAuthorizationFilter" level="INFO">
-    <appender-ref ref="STDOUT" />
+    <appender-ref ref="ASYNCFILE" />
   </logger>
 
   <root level="WARN">
