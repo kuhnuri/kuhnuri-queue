@@ -2,16 +2,16 @@ package services
 
 import java.io.IOException
 import java.nio.charset.StandardCharsets.UTF_8
-import java.nio.file.{Files, Paths}
 import java.nio.file.StandardOpenOption.CREATE
+import java.nio.file.{Files, Paths}
 import java.time.{Clock, Duration, LocalDateTime, ZoneOffset}
 import java.util.UUID
 
 import akka.actor.ActorSystem
 import filters.TokenAuthorizationFilter.AUTH_TOKEN_HEADER
 import javax.inject.{Inject, Singleton}
-import models._
 import models.Job._
+import models._
 import models.request.{Create, JobResult}
 import play.api.libs.json.{JsError, Json}
 import play.api.libs.ws.WSClient
@@ -268,26 +268,28 @@ class SimpleQueue @Inject()(ws: WSClient,
   }
 
   protected def load(): mutable.Map[String, Job] = {
-    logger.info(s"Read ${stateFile}")
-    val in = Files.newInputStream(stateFile)
-    try {
-      Json.parse(in).validate[Map[String, Job]].map {
-        case req: Map[String, Job] => {
-          mutable.Map(req.toSeq: _*)
+    if (Files.exists(stateFile)) {
+      logger.info(s"Read ${stateFile}")
+      val in = Files.newInputStream(stateFile)
+      try {
+        Json.parse(in).validate[Map[String, Job]].map {
+          case req: Map[String, Job] => {
+            mutable.Map(req.toSeq: _*)
+          }
+        }.recoverTotal {
+          e => {
+            logger.error("Failed to read queue state:" + JsError.toJson(e))
+            mutable.Map[String, Job]()
+          }
         }
-      }.recoverTotal {
-        e => {
-          logger.error("Failed to read queue state:" + JsError.toJson(e))
+      } catch {
+        case e: IOException => {
+          logger.error("Failed to read queue state file", e)
           mutable.Map[String, Job]()
         }
+      } finally {
+        in.close()
       }
-    } catch {
-      case e: IOException => {
-        logger.error("Failed to read queue state file", e)
-        mutable.Map[String, Job]()
-      }
-    } finally {
-      in.close()
     }
   }
 
