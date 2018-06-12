@@ -184,11 +184,12 @@ class SimpleQueue @Inject()(ws: WSClient,
           case Some(task) => {
             var resTask: Task = null
             val tasksWithPrevious: Seq[(Task, Option[String])] = zipWithPreviousOutput(job)
+            val lastTaskId = job.transtype.last.id
             val tasks = tasksWithPrevious.map { case (t, previousOutput) =>
               if (t.id == task.id) {
                 resTask = task.copy(
                   input = previousOutput,
-                  output = Some(job.output),
+                  output = if (t.id == lastTaskId) Some(job.output) else None,
                   status = StatusString.Process,
                   processing = Some(LocalDateTime.now(clock)),
                   worker = Some(worker.id)

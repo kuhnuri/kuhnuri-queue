@@ -16,6 +16,7 @@ class SimpleQueueSpec extends FlatSpec with Matchers with BeforeAndAfter {
 
   private val app = new GuiceApplicationBuilder()
     .configure(Map(
+      "queue.temp" -> System.getProperty("java.io.tmpdir"),
       "queue.timeout" -> "10m",
       "queue.users" -> List(Map(
         "username" -> "worker",
@@ -73,6 +74,30 @@ class SimpleQueueSpec extends FlatSpec with Matchers with BeforeAndAfter {
         res.id shouldBe "id-A_1"
         res.input shouldBe Some("file:/src/root.ditamap")
         res.output shouldBe Some("file:/dst/")
+        res.worker shouldBe Some("worker-id")
+        res.processing shouldBe Some(LocalDateTime.now(clock))
+        res.status shouldBe StatusString.Process
+      }
+      case None => fail
+    }
+  }
+
+  "Job with two tasks" should "return first task" in {
+    queue.data += "id-A" -> Job("id-A",
+      "file:/src/root.ditamap",
+      "file:/dst/",
+      List(
+        Task("id-A_1", "id-A", None, None, "graphics", Map.empty, StatusString.Queue, None, None, None),
+        Task("id-A_2", "id-A", None, None, "html5", Map.empty, StatusString.Queue, None, None, None)
+      ),
+      0, queue.now.minusHours(1), None, StatusString.Queue)
+
+    queue.request(List("graphics"), worker) match {
+      case Some(res) => {
+        res.transtype shouldBe "graphics"
+        res.id shouldBe "id-A_1"
+        res.input shouldBe Some("file:/src/root.ditamap")
+        res.output shouldBe None
         res.worker shouldBe Some("worker-id")
         res.processing shouldBe Some(LocalDateTime.now(clock))
         res.status shouldBe StatusString.Process
