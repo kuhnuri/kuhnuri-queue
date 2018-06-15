@@ -154,7 +154,35 @@ class SimpleQueueSpec extends FlatSpec with Matchers with BeforeAndAfter {
     job.status shouldBe StatusString.Done
   }
 
-  "Job with one active task" should "accept job with update output" in {
+  "Job with first active task" should "accept job with update output" in {
+    queue.data += "id-A" -> Job("id-A",
+      "file:/src/root.ditamap",
+      "file:/dst/",
+      List(
+        Task("id-A_1", "id-A", Some("file:/src/root.ditamap"), Some("file:/dst/userguide.zip"),
+          "graphics", Map.empty, StatusString.Done, Some(queue.now.minusMinutes(3)), Some("worker-id"),
+          Some(queue.now.minusMinutes(2))),
+        Task("id-A_2", "id-A", Some("file:/dst/userguide.zip"), Some("file:/dst/"), "html5", Map.empty,
+          StatusString.Process, Some(queue.now.minusMinutes(1)), Some("worker-id"), None)
+      ),
+      0, queue.now.minusHours(1), None, StatusString.Process)
+
+    val res = Task("id-A_2", "id-A", Some("file:/dst/userguide.zip"), Some("file:/dst/"),
+      "html5", Map.empty, StatusString.Done, Some(queue.now.minusMinutes(1)), Some("worker-id"), Some(queue.now))
+    queue.submit(JobResult(res, List.empty))
+
+    val job = queue.data("id-A")
+    job.output shouldBe "file:/dst/"
+    job.transtype(0).status shouldBe StatusString.Done
+    job.transtype(0).output shouldBe Some("file:/dst/userguide.zip")
+    job.transtype(1).status shouldBe StatusString.Done
+    job.transtype(1).input shouldBe Some("file:/dst/userguide.zip")
+    job.transtype(1).output shouldBe Some("file:/dst/")
+    job.finished shouldBe Some(queue.now)
+    job.status shouldBe StatusString.Done
+  }
+
+  "Job with last active task" should "accept job with update output" in {
     queue.data += "id-A" -> Job("id-A",
       "file:/src/root.ditamap",
       "file:/dst/",
