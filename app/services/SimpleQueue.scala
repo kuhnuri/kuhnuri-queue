@@ -187,7 +187,7 @@ class SimpleQueue @Inject()(ws: WSClient,
             val lastTaskId = job.transtype.last.id
             val tasks = tasksWithPrevious.map { case (t, previousOutput) =>
               if (t.id == task.id) {
-                resTask = task.copy(
+                resTask = t.copy(
                   input = previousOutput,
                   output = if (t.id == lastTaskId) Some(job.output) else None,
                   status = StatusString.Process,
@@ -196,7 +196,7 @@ class SimpleQueue @Inject()(ws: WSClient,
                 )
                 resTask
               } else {
-                task
+                t
               }
             }
             val res = job.copy(
@@ -239,7 +239,7 @@ class SimpleQueue @Inject()(ws: WSClient,
           }
         }
         val jobFinished = if (tasks.last.finished.isDefined) Some(finished) else None
-        val jobOutput = if (tasks.last.id == result.task.id) tasks.last.output.get else job.output
+        val jobOutput = if (tasks.last.id == result.task.id && result.task.output.isDefined) result.task.output.get else job.output
         val jobStatus: StatusString = getStatus(tasks)
         val res: Job = job.copy(
           transtype = tasks,
