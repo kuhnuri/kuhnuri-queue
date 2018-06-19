@@ -211,6 +211,7 @@ class SimpleQueue @Inject()(ws: WSClient,
       }
   }
 
+  /** Job compare by created field. */
   private def compare(j: Job, k: Job): Boolean = {
     val p = j.priority.compareTo(k.priority)
     if (p != 0) {

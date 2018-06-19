@@ -6,6 +6,13 @@ import models.request.Register.uriReads
 import play.api.libs.functional.syntax._
 import play.api.libs.json._
 
+/**
+  * Worker information.
+  *
+  * @param token worker authentication token
+  * @param id worker ID
+  * @param uri worker callback URI
+  */
 case class Worker(token: String, id: String, uri: URI)
 
 object Worker {
