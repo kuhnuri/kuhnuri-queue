@@ -12,7 +12,7 @@ trait Queue {
 
   def contents(): Seq[Job]
 
-  def update(job: Update): Option[Task]
+//  def update(job: Update): Option[Task]
 
   //  def cancel(id: String): JobStatus
 }

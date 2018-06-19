@@ -130,28 +130,28 @@ class SimpleQueue @Inject()(ws: WSClient,
     job
   }
 
-  override def update(update: Update): Option[Task] = {
-    data.values.foreach { job =>
-      val task = job.transtype.find(_.id == update.id)
-      if (task.isDefined) {
-        val tasks = job.transtype.map { task =>
-          if (task.id == update.id) {
-            task.copy(status = update.status.getOrElse(task.status))
-          } else {
-            task
-          }
-        }
-        val res = job.copy(
-          transtype = tasks,
-          status = getStatus(tasks)
-        )
-        data += res.id -> res
-        persist()
-        return task
-      }
-    }
-    None
-  }
+//  override def update(update: Update): Option[Task] = {
+//    data.values.foreach { job =>
+//      val task = job.transtype.find(_.id == update.id)
+//      if (task.isDefined) {
+//        val tasks = job.transtype.map { task =>
+//          if (task.id == update.id) {
+//            task.copy(status = update.status.getOrElse(task.status))
+//          } else {
+//            task
+//          }
+//        }
+//        val res = job.copy(
+//          transtype = tasks,
+//          status = getStatus(tasks)
+//        )
+//        data += res.id -> res
+//        persist()
+//        return task
+//      }
+//    }
+//    None
+//  }
 
   override def request(transtypes: List[String], worker: Worker): Option[Task] = {
     def hasQueueTask(job: Job, transtypes: List[String]): Boolean = {
