@@ -207,5 +207,24 @@ class SimpleQueueSpec extends FlatSpec with Matchers with BeforeAndAfter {
     job.finished shouldBe None
     job.status shouldBe StatusString.Process
   }
+
+  def createTask(statuses: StatusString*): Seq[Task] =
+    statuses.map(Task(null, null, null, null, null, null, _, null, null, null))
+
+  "Get status from tasks" should "return queue" in {
+    queue.getStatus(createTask(StatusString.Queue, StatusString.Queue)) shouldBe StatusString.Queue
+  }
+
+  it should "return process" in {
+    queue.getStatus(createTask(StatusString.Done, StatusString.Process)) shouldBe StatusString.Process
+  }
+
+  it should "return error" in {
+    queue.getStatus(createTask(StatusString.Done, StatusString.Error)) shouldBe StatusString.Error
+  }
+
+  it should "return done" in {
+    queue.getStatus(createTask(StatusString.Done, StatusString.Done)) shouldBe StatusString.Done
+  }
 }
 

@@ -39,6 +39,38 @@ class SimpleQueue @Inject()(ws: WSClient,
     * Return stale tasks back to queue.
     */
   private def checkQueue(): Unit = {
+    def hasJobTimedOut(job: Job): Boolean = {
+      return job.transtype.find(hasTaskTimedOut).isDefined
+    }
+
+    def hasTaskTimedOut(task: Task): Boolean = {
+      // Is being processed
+      if (task.processing.isDefined && task.finished.isEmpty) {
+        // Timeout has occurred
+        val now = LocalDateTime.now(clock)
+        if (task.processing.map(_.plus(timeout).isBefore(now)).get) {
+          // Worker cannot be contacted
+          !pingWorker(task)
+        }
+      }
+      return false
+    }
+
+    def pingWorker(task: Task): Boolean = {
+      WorkerStore.workers.get(task.worker.get).map { worker =>
+        val workerUri = worker.uri.resolve("api/v1/status")
+        logger.debug(s"Check worker status: ${workerUri}")
+        val req: Future[Boolean] = ws.url(workerUri.toString)
+          .addHttpHeaders(AUTH_TOKEN_HEADER -> worker.token)
+          .withRequestTimeout(10000.millis)
+          .get()
+          .map(_.status == http.Status.OK)
+        val res: Boolean = Await.result(req, 10000.millis)
+        return res
+      }
+      return false
+    }
+
     logger.debug("Check stale jobs")
     data.values
       .filter(hasJobTimedOut)
@@ -59,38 +91,6 @@ class SimpleQueue @Inject()(ws: WSClient,
         data += res.id -> res
         persist()
       }
-  }
-
-  private def hasJobTimedOut(job: Job): Boolean = {
-    return job.transtype.find(hasTaskTimedOut).isDefined
-  }
-
-  private def hasTaskTimedOut(task: Task): Boolean = {
-    // Is being processed
-    if (task.processing.isDefined && task.finished.isEmpty) {
-      // Timeout has occurred
-      val now = LocalDateTime.now(clock)
-      if (task.processing.map(_.plus(timeout).isBefore(now)).get) {
-        // Worker cannot be contacted
-        !pingWorker(task)
-      }
-    }
-    return false
-  }
-
-  private def pingWorker(task: Task): Boolean = {
-    WorkerStore.workers.get(task.worker.get).map { worker =>
-      val workerUri = worker.uri.resolve("api/v1/status")
-      logger.debug(s"Check worker status: ${workerUri}")
-      val req: Future[Boolean] = ws.url(workerUri.toString)
-        .addHttpHeaders(AUTH_TOKEN_HEADER -> worker.token)
-        .withRequestTimeout(10000.millis)
-        .get()
-        .map(_.status == http.Status.OK)
-      val res: Boolean = Await.result(req, 10000.millis)
-      return res
-    }
-    return false
   }
 
   override def contents(): Seq[Job] =
@@ -174,6 +174,15 @@ class SimpleQueue @Inject()(ws: WSClient,
         List(Some(job.input)) ++ job.transtype.map(_.output)
       )
 
+    /** Job compare by created field. */
+    def compare(j: Job, k: Job): Boolean = {
+      val p = j.priority.compareTo(k.priority)
+      if (p != 0) {
+        return p < 0
+      }
+      j.created.toEpochSecond(ZoneOffset.UTC).compareTo(k.created.toEpochSecond(ZoneOffset.UTC)) < 0
+    }
+
     return data.values
       .filter(job => hasQueueTask(job, transtypes))
       .toList
@@ -209,15 +218,6 @@ class SimpleQueue @Inject()(ws: WSClient,
           case None => None
         }
       }
-  }
-
-  /** Job compare by created field. */
-  private def compare(j: Job, k: Job): Boolean = {
-    val p = j.priority.compareTo(k.priority)
-    if (p != 0) {
-      return p < 0
-    }
-    j.created.toEpochSecond(ZoneOffset.UTC).compareTo(k.created.toEpochSecond(ZoneOffset.UTC)) < 0
   }
 
   override def submit(result: JobResult): Task = {
@@ -257,6 +257,9 @@ class SimpleQueue @Inject()(ws: WSClient,
     }
   }
 
+  /**
+    * Persist queue to disk.
+    */
   protected def persist(): Unit = {
     val out = Files.newBufferedWriter(stateFile, UTF_8, CREATE)
     try {
@@ -270,6 +273,9 @@ class SimpleQueue @Inject()(ws: WSClient,
     }
   }
 
+  /**
+    * Load persisted queue from disk.
+    */
   protected def load(): mutable.Map[String, Job] = {
     if (Files.exists(stateFile)) {
       logger.info(s"Read ${stateFile}")
@@ -298,7 +304,10 @@ class SimpleQueue @Inject()(ws: WSClient,
     }
   }
 
-  private def getStatus(tasks: Seq[Task]): StatusString =
+  /**
+    * Get job status from task statuses.
+    */
+  def getStatus(tasks: Seq[Task]): StatusString =
     if (tasks.forall(_.status == StatusString.Queue)) StatusString.Queue
     else if (tasks.forall(_.status == StatusString.Done)) StatusString.Done
     else if (tasks.exists(_.status == StatusString.Error)) StatusString.Error
