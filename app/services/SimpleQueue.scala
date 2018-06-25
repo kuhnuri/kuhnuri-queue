@@ -158,6 +158,9 @@ class SimpleQueue @Inject()(ws: WSClient,
       if (job.finished.isDefined) {
         return false
       }
+      if (job.transtype.exists(_.status == StatusString.Process)) {
+        return false
+      }
       getFirstQueueTask(job)
         .filter(task => transtypes.contains(task.transtype))
         .isDefined

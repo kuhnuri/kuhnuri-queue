@@ -132,6 +132,24 @@ class SimpleQueueSpec extends FlatSpec with Matchers with BeforeAndAfter {
     }
   }
 
+  "Job with one active task" should "not return second task" in {
+    queue.data += "id-A" -> Job("id-A",
+      "file:/src/root.ditamap",
+      "file:/dst/",
+      List(
+        Task("id-A_1", "id-A", Some("file:/src/root.ditamap"), Some("file:/dst/"), "html5", Map.empty,
+          StatusString.Process, Some(queue.now.minusMinutes(10)), Some("worker-id"), None),
+        Task("id-A_2", "id-A", None, None, "upload", Map.empty, StatusString.Queue, None, None, None)
+      ),
+      0, queue.now.minusHours(1), None, StatusString.Process)
+
+    queue.request(List("upload"), worker) match {
+      case Some(_) => fail
+      case None =>
+    }
+  }
+
+
   "Job with single active task" should "accept job with update output" in {
     queue.data += "id-A" -> Job("id-A",
       "file:/src/root.ditamap",
@@ -155,6 +173,33 @@ class SimpleQueueSpec extends FlatSpec with Matchers with BeforeAndAfter {
   }
 
   "Job with first active task" should "accept job with update output" in {
+    queue.data += "id-A" -> Job("id-A",
+      "file:/src/root.ditamap",
+      "file:/dst/",
+      List(
+        Task("id-A_1", "id-A", Some("file:/src/root.ditamap"), None, "graphics", Map.empty, StatusString.Process,
+          Some(queue.now.minusMinutes(3)), Some("worker-id"), None),
+        Task("id-A_2", "id-A", None, None, "html5", Map.empty, StatusString.Queue, None, None, None)
+      ),
+      0, queue.now.minusHours(1), None, StatusString.Process)
+
+    val res = Task("id-A_1", "id-A", Some("file:/src/root.ditamap"), Some("file:/tmp/userguide.zip"),
+      "html5", Map.empty, StatusString.Done, Some(queue.now.minusMinutes(1)), Some("worker-id"), Some(queue.now))
+    queue.submit(JobResult(res, List.empty))
+
+    val job = queue.data("id-A")
+    job.output shouldBe "file:/dst/"
+    job.transtype(0).status shouldBe StatusString.Done
+    job.transtype(0).input shouldBe Some("file:/src/root.ditamap")
+    job.transtype(0).output shouldBe Some("file:/tmp/userguide.zip")
+    job.transtype(1).status shouldBe StatusString.Queue
+    job.transtype(1).input shouldBe None
+    job.transtype(1).output shouldBe None
+    job.finished shouldBe None
+    job.status shouldBe StatusString.Process
+  }
+
+  "Job with second active task" should "accept job with update output" in {
     queue.data += "id-A" -> Job("id-A",
       "file:/src/root.ditamap",
       "file:/dst/",
@@ -209,7 +254,7 @@ class SimpleQueueSpec extends FlatSpec with Matchers with BeforeAndAfter {
   }
 
   def createTask(statuses: StatusString*): Seq[Task] =
-    statuses.map(Task(null, null, null, null, null, null, _, null, null, null))
+    statuses.map(Task(null, null, Some(null), null, null, null, _, null, null, null))
 
   "Get status from tasks" should "return queue" in {
     queue.getStatus(createTask(StatusString.Queue, StatusString.Queue)) shouldBe StatusString.Queue
