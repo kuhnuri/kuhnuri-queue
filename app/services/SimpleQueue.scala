@@ -201,6 +201,7 @@ class SimpleQueue @Inject()(ws: WSClient,
         data.synchronized {
           getFirstQueueTask(job) match {
             case Some(task) => {
+              assert(task.status == StatusString.Queue)
               var resTask: Task = null
               val tasksWithPrevious: Seq[(Task, Option[String])] = zipWithPreviousOutput(job)
               val lastTaskId = job.transtype.last.id
