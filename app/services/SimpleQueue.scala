@@ -88,7 +88,9 @@ class SimpleQueue @Inject()(ws: WSClient,
 
           }
         )
-        data += res.id -> res
+        data.synchronized {
+          data += res.id -> res
+        }
         persist()
       }
   }
@@ -125,7 +127,9 @@ class SimpleQueue @Inject()(ws: WSClient,
       None,
       StatusString.Queue)
 
-    data += job.id -> job
+    data.synchronized {
+      data += job.id -> job
+    }
     persist()
     job
   }
@@ -192,33 +196,35 @@ class SimpleQueue @Inject()(ws: WSClient,
       .sortWith(compare)
       .headOption
       .flatMap { job =>
-        getFirstQueueTask(job) match {
-          case Some(task) => {
-            var resTask: Task = null
-            val tasksWithPrevious: Seq[(Task, Option[String])] = zipWithPreviousOutput(job)
-            val lastTaskId = job.transtype.last.id
-            val tasks = tasksWithPrevious.map { case (t, previousOutput) =>
-              if (t.id == task.id) {
-                resTask = t.copy(
-                  input = previousOutput,
-                  output = if (t.id == lastTaskId) Some(job.output) else None,
-                  status = StatusString.Process,
-                  processing = Some(LocalDateTime.now(clock)),
-                  worker = Some(worker.id)
-                )
-                resTask
-              } else {
-                t
+        data.synchronized {
+          getFirstQueueTask(job) match {
+            case Some(task) => {
+              var resTask: Task = null
+              val tasksWithPrevious: Seq[(Task, Option[String])] = zipWithPreviousOutput(job)
+              val lastTaskId = job.transtype.last.id
+              val tasks = tasksWithPrevious.map { case (t, previousOutput) =>
+                if (t.id == task.id) {
+                  resTask = t.copy(
+                    input = previousOutput,
+                    output = if (t.id == lastTaskId) Some(job.output) else None,
+                    status = StatusString.Process,
+                    processing = Some(LocalDateTime.now(clock)),
+                    worker = Some(worker.id)
+                  )
+                  resTask
+                } else {
+                  t
+                }
               }
+              val res = job.copy(
+                transtype = tasks
+              )
+              data += res.id -> res
+              persist()
+              Some(resTask)
             }
-            val res = job.copy(
-              transtype = tasks
-            )
-            data += res.id -> res
-            persist()
-            Some(resTask)
+            case None => None
           }
-          case None => None
         }
       }
   }
@@ -252,7 +258,9 @@ class SimpleQueue @Inject()(ws: WSClient,
           status = jobStatus
         )
         logger.info(s" save ${res}")
-        data += res.id -> res
+        data.synchronized {
+          data += res.id -> res
+        }
         persist()
         task //res
       }
