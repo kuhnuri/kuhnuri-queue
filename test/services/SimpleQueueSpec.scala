@@ -253,6 +253,26 @@ class SimpleQueueSpec extends FlatSpec with Matchers with BeforeAndAfter {
     job.status shouldBe StatusString.Process
   }
 
+  "Submit with new task parameters" should "be added to work parameters" in {
+    queue.data += "id-A" -> Job("id-A",
+      "file:/src/root.ditamap",
+      "file:/dst/",
+      List(
+        Task("id-A_1", "id-A", Some("file:/src/root.ditamap"), Some("file:/dst/"), "html5",
+          Map("old" -> "A"),
+          StatusString.Process, Some(queue.now.minusHours(1)), Some("worker-id"), None)
+      ),
+      0, queue.now.minusHours(2), None, StatusString.Process)
+
+    val res = Task("id-A_1", "id-A", Some("file:/src/root.ditamap"), Some("file:/dst/userguide.zip"), "html5",
+      Map("old" -> "B", "new" -> "C"), StatusString.Done, Some(queue.now.minusHours(1)), Some("worker-id"),
+      Some(queue.now))
+    queue.submit(JobResult(res, List.empty))
+
+    val job = queue.data("id-A")
+    job.transtype(0).params shouldBe Map("old" -> "A")
+  }
+
   def createTask(statuses: StatusString*): Seq[Task] =
     statuses.map(Task(null, null, Some(null), null, null, null, _, null, null, null))
 
