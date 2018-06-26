@@ -2,10 +2,9 @@ import java.time.{Clock, Instant, LocalDateTime, ZoneOffset}
 
 import filters.TokenAuthorizationFilter.AUTH_TOKEN_HEADER
 import models.{Job, StatusString, Task}
-import org.scalatest.{BeforeAndAfter, TestData}
+import org.scalatest.BeforeAndAfter
 import org.scalatestplus.play._
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
-import play.api.Application
 import play.api.inject.bind
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.libs.json._
@@ -29,7 +28,8 @@ class WorkSpec extends PlaySpec with GuiceOneAppPerSuite with BeforeAndAfter {
       "queue.users" -> List(Map(
         "username" -> "worker",
         "hash" -> "$2a$10$c.9YXZkSrElx2dz8udP8vOlZSfF/ftsf4EClIORt8ILWd8vciLING"
-      ))
+      )),
+      "queue.temp" -> System.getProperty("java.io.tmpdir")
     ))
     .overrides(
       bind(classOf[Dispatcher]).to(classOf[DummyQueue]),

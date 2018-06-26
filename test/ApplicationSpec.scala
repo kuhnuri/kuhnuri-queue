@@ -27,7 +27,8 @@ class ApplicationSpec extends PlaySpec with GuiceOneAppPerSuite with BeforeAndAf
       "queue.users" -> List(Map(
         "username" -> "worker",
         "hash" -> "$2a$10$c.9YXZkSrElx2dz8udP8vOlZSfF/ftsf4EClIORt8ILWd8vciLING"
-      ))
+      )),
+      "queue.temp" -> System.getProperty("java.io.tmpdir")
     ))
     .overrides(
       bind(classOf[Queue]).to(classOf[DummyQueue]),
