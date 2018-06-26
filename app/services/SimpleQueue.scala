@@ -20,6 +20,7 @@ import play.api.{Configuration, Logger, http}
 import scala.collection.mutable
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.collection.JavaConverters._
 
 @Singleton
 class SimpleQueue @Inject()(ws: WSClient,
@@ -105,11 +106,12 @@ class SimpleQueue @Inject()(ws: WSClient,
 
   override def add(newJob: Create): Job = {
     val id = UUID.randomUUID().toString
+    val transtypes = getTranstypes(newJob.transtype)
     val job = Job(
       id,
       newJob.input,
       newJob.output,
-      newJob.transtype.map(t =>
+      transtypes.map(t =>
         Task(
           UUID.randomUUID().toString,
           id,
@@ -133,6 +135,15 @@ class SimpleQueue @Inject()(ws: WSClient,
     persist()
     job
   }
+
+  private val transtypeAlias: Map[String, Seq[String]] = configuration.underlying
+    .getConfigList("queue.alias")
+    .asScala
+    .map(alias => alias.getString("name") -> alias.getStringList("transtypes").asScala)
+    .toMap
+
+  def getTranstypes(transtypes: Seq[String]): Seq[String] =
+    transtypes.flatMap(transtype => transtypeAlias.getOrElse(transtype, List(transtype)))
 
 //  override def update(update: Update): Option[Task] = {
 //    data.values.foreach { job =>

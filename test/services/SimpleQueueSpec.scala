@@ -21,6 +21,10 @@ class SimpleQueueSpec extends FlatSpec with Matchers with BeforeAndAfter {
       "queue.users" -> List(Map(
         "username" -> "worker",
         "hash" -> "$2a$10$c.9YXZkSrElx2dz8udP8vOlZSfF/ftsf4EClIORt8ILWd8vciLING"
+      )),
+      "queue.alias" -> List(Map(
+        "name" -> "duo",
+        "transtypes" -> List("first", "second")
       ))
     ))
     .overrides(
@@ -290,6 +294,18 @@ class SimpleQueueSpec extends FlatSpec with Matchers with BeforeAndAfter {
 
   it should "return done" in {
     queue.getStatus(createTask(StatusString.Done, StatusString.Done)) shouldBe StatusString.Done
+  }
+
+  "Transtype alias" should "preserve unknown transtypes" in {
+    queue.getTranstypes(List("foo", "bar")) shouldBe List("foo", "bar")
+  }
+
+  it should "subsitute alias in list" in {
+    queue.getTranstypes(List("foo", "duo", "bar")) shouldBe List("foo", "first", "second", "bar")
+  }
+
+  it should "subsitute alias as only entry" in {
+    queue.getTranstypes(List("duo")) shouldBe List("first", "second")
   }
 }
 
