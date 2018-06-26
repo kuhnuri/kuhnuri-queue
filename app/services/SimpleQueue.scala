@@ -275,7 +275,7 @@ class SimpleQueue @Inject()(ws: WSClient,
     * Persist queue to disk.
     */
   protected def persist(): Unit = {
-    val out = Files.newBufferedWriter(stateFile, UTF_8, CREATE)
+    val out = Files.newBufferedWriter(stateFile, UTF_8)
     try {
       out.write(Json.toJson(data).toString())
     } catch {
