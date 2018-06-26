@@ -162,7 +162,7 @@ class SimpleQueue @Inject()(ws: WSClient,
       if (job.finished.isDefined) {
         return false
       }
-      if (job.transtype.exists(_.status == StatusString.Process)) {
+      if (job.transtype.exists(task => task.status == StatusString.Process || task.status == StatusString.Error)) {
         return false
       }
       getFirstQueueTask(job)
@@ -172,8 +172,10 @@ class SimpleQueue @Inject()(ws: WSClient,
 
     def getFirstQueueTask(job: Job): Option[Task] = {
       job.transtype
-        .find(task => task.status == StatusString.Queue)
+        .span(_.status == StatusString.Done)
+        ._2
         .headOption
+        .filter(_.status == StatusString.Queue)
     }
 
     def zipWithPreviousOutput(job: Job): Seq[(Task, Option[String])] =
