@@ -259,18 +259,18 @@ class SimpleQueueSpec extends FlatSpec with Matchers with BeforeAndAfter {
       "file:/dst/",
       List(
         Task("id-A_1", "id-A", Some("file:/src/root.ditamap"), Some("file:/dst/"), "html5",
-          Map("old" -> "A"),
+          Map("a" -> "A", "b" -> "B"),
           StatusString.Process, Some(queue.now.minusHours(1)), Some("worker-id"), None)
       ),
       0, queue.now.minusHours(2), None, StatusString.Process)
 
     val res = Task("id-A_1", "id-A", Some("file:/src/root.ditamap"), Some("file:/dst/userguide.zip"), "html5",
-      Map("old" -> "B", "new" -> "C"), StatusString.Done, Some(queue.now.minusHours(1)), Some("worker-id"),
+      Map("b" -> "C", "d" -> "D"), StatusString.Done, Some(queue.now.minusHours(1)), Some("worker-id"),
       Some(queue.now))
     queue.submit(JobResult(res, List.empty))
 
     val job = queue.data("id-A")
-    job.transtype(0).params shouldBe Map("old" -> "A")
+    job.transtype(0).params shouldBe Map("a" -> "A", "b" -> "C", "d" -> "D")
   }
 
   def createTask(statuses: StatusString*): Seq[Task] =

@@ -244,6 +244,7 @@ class SimpleQueue @Inject()(ws: WSClient,
             task = t.copy(
               output = result.task.output,
               status = result.task.status,
+              params = t.params ++ result.task.params,
               finished = Some(finished)
             )
             task
