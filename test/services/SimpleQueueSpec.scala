@@ -22,10 +22,23 @@ class SimpleQueueSpec extends FlatSpec with Matchers with BeforeAndAfter {
         "username" -> "worker",
         "hash" -> "$2a$10$c.9YXZkSrElx2dz8udP8vOlZSfF/ftsf4EClIORt8ILWd8vciLING"
       )),
-      "queue.alias" -> List(Map(
-        "name" -> "duo",
-        "transtypes" -> List("first", "second")
-      ))
+      "queue.alias" -> List(
+        Map(
+          "name" -> "duo",
+          "transtypes" -> List("first", "second"),
+          "params" -> Map(
+            "foo" -> "bar"
+          )
+        ),
+        Map(
+          "name" -> "single",
+          "transtypes" -> List("replacement"),
+          "params" -> Map(
+            "foo" -> "override",
+            "bar" -> "baz"
+          )
+        )
+      )
     ))
     .overrides(
       bind(classOf[Dispatcher]).to(classOf[DummyQueue]),
@@ -306,6 +319,18 @@ class SimpleQueueSpec extends FlatSpec with Matchers with BeforeAndAfter {
 
   it should "subsitute alias as only entry" in {
     queue.getTranstypes(List("duo")) shouldBe List("first", "second")
+  }
+
+  "Transtype params" should "preserve unknown transtypes" in {
+    queue.getParams(List("foo", "bar")) shouldBe Map.empty
+  }
+
+  it should "subsitute alias in list" in {
+    queue.getParams(List("foo", "duo", "single", "bar")) shouldBe Map("foo" -> "bar", "bar" -> "baz")
+  }
+
+  it should "subsitute alias as only entry" in {
+    queue.getParams(List("duo")) shouldBe Map("foo" -> "bar")
   }
 }
 

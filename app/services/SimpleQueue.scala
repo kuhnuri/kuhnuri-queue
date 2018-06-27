@@ -107,6 +107,7 @@ class SimpleQueue @Inject()(ws: WSClient,
   override def add(newJob: Create): Job = {
     val id = UUID.randomUUID().toString
     val transtypes = getTranstypes(newJob.transtype)
+    val params = getParams(newJob.transtype) ++ newJob.params
     val job = Job(
       id,
       newJob.input,
@@ -118,7 +119,7 @@ class SimpleQueue @Inject()(ws: WSClient,
           None,
           None,
           t,
-          newJob.params,
+          params,
           StatusString.Queue,
           None,
           None,
@@ -144,6 +145,23 @@ class SimpleQueue @Inject()(ws: WSClient,
 
   def getTranstypes(transtypes: Seq[String]): Seq[String] =
     transtypes.flatMap(transtype => transtypeAlias.getOrElse(transtype, List(transtype)))
+
+  private val transtypeParams: Map[String, Map[String, String]] = configuration.underlying
+    .getConfigList("queue.alias")
+    .asScala
+    .map(alias =>
+      alias.getString("name") -> alias.getConfig("params")
+        .entrySet.asScala
+        .map(entry => entry.getKey -> entry.getValue.unwrapped.toString)
+        .toMap
+    )
+    .toMap
+
+  def getParams(transtypes: Seq[String]): Map[String, String] =
+    transtypes
+      .flatMap(transtypeParams.getOrElse(_, Map.empty).toList)
+      .groupBy(_._1)
+      .map(_._2.head)
 
 //  override def update(update: Update): Option[Task] = {
 //    data.values.foreach { job =>
