@@ -30,6 +30,7 @@ class SimpleQueue @Inject()(ws: WSClient,
 
   private val logger = Logger(this.getClass)
   private val timeout = Duration.ofMillis(configuration.getMillis("queue.timeout"))
+  private val archiveDir = Paths.get(configuration.get[String]("queue.temp"), "archive")
   private val stateFile = Paths.get(configuration.get[String]("queue.temp"), "queue.json")
 
   val data: mutable.Map[String, Job] = load()
@@ -100,7 +101,7 @@ class SimpleQueue @Inject()(ws: WSClient,
     data.values.seq.toList.sortBy(_.created.toEpochSecond(ZoneOffset.UTC))
 
   override def get(id: String): Option[Job] =
-    data.get(id)
+    data.get(id).orElse(loadArchive(id))
 
   override def log(id: String, offset: Int): Option[Seq[String]] = ???
 
@@ -291,10 +292,19 @@ class SimpleQueue @Inject()(ws: WSClient,
           status = jobStatus
         )
         logger.info(s" save ${res}")
-        data.synchronized {
-          data += res.id -> res
+        if (res.status == StatusString.Done || res.status == StatusString.Error) {
+          archive(res)
+          data.synchronized {
+            data -= res.id
+//            data += res.id -> res
+          }
+          persist()
+        } else {
+          data.synchronized {
+            data += res.id -> res
+          }
+          persist()
         }
-        persist()
         task //res
       }
       case None => throw new IllegalStateException("Unable to find matching Job")
@@ -345,6 +355,53 @@ class SimpleQueue @Inject()(ws: WSClient,
       }
     } else {
       mutable.Map.empty
+    }
+  }
+
+  /**
+    * Archive job to disk.
+    */
+  protected def archive(res: Job): Unit = {
+    val file = archiveDir.resolve(s"${res.id}.json")
+    val out = Files.newBufferedWriter(file, UTF_8)
+    try {
+      out.write(Json.toJson(res).toString())
+    } catch {
+      case e: IOException => {
+        logger.error("Failed to archive job", e)
+      }
+    } finally {
+      out.close()
+    }
+  }
+
+  /**
+    * Load persisted queue from disk.
+    */
+  protected def loadArchive(id: String): Option[Job] = {
+    val file = archiveDir.resolve(s"${id}.json")
+    if (Files.exists(file)) {
+      logger.info(s"Read ${file}")
+      val in = Files.newInputStream(file)
+      try {
+        Json.parse(in).validate[Job].map {
+          case job: Job => Option(job)
+        }.recoverTotal {
+          e => {
+            logger.error("Failed to read job archive:" + JsError.toJson(e))
+            Option.empty
+          }
+        }
+      } catch {
+        case e: IOException => {
+          logger.error("Failed to read job archive", e)
+          Option.empty
+        }
+      } finally {
+        in.close()
+      }
+    } else {
+      Option.empty
     }
   }
 
