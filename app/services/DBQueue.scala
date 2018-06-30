@@ -7,7 +7,7 @@ import generated.Tables._
 import generated.enums.Status
 import javax.inject.{Inject, Singleton}
 import models._
-import models.request.{Create, JobResult}
+import models.request.{Create, Filter, JobResult}
 import org.jooq.impl.DSL
 import org.jooq.{Update => _, _}
 import play.api.db.Database
@@ -101,7 +101,7 @@ class DBQueue @Inject()(db: Database,
       .from(JOB)
   }
 
-  override def contents(): Seq[Job] = {
+  override def contents(filter: Filter): Seq[Job] = {
     db.withConnection { connection =>
       val sql = DSL.using(connection, SQLDialect.POSTGRES_9_4)
       //[string, string, string,int, date, date, status]
@@ -366,7 +366,7 @@ private object Mappers {
         c.value5.toLocalDateTime,
         //          Option(c.value9),
         Option(c.value6).map(_.toLocalDateTime),
-        StatusString.parse(c.value7)
+        StatusString(c.value7)
       )
 
       //        id: String,

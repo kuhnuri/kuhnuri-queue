@@ -12,7 +12,7 @@ import filters.TokenAuthorizationFilter.AUTH_TOKEN_HEADER
 import javax.inject.{Inject, Singleton}
 import models.Job._
 import models._
-import models.request.{Create, JobResult}
+import models.request.{Create, Filter, JobResult}
 import play.api.libs.json.{JsError, Json}
 import play.api.libs.ws.WSClient
 import play.api.{Configuration, Logger, http}
@@ -97,8 +97,13 @@ class SimpleQueue @Inject()(ws: WSClient,
       }
   }
 
-  override def contents(): Seq[Job] =
-    data.values.seq.toList.sortBy(_.created.toEpochSecond(ZoneOffset.UTC))
+  override def contents(filter: Filter): Seq[Job] = {
+    val values = filter match {
+      case Filter(None) => data.valuesIterator
+      case Filter(status) => data.valuesIterator.filter(job => status.map(s => s == job.status).getOrElse(true))
+    }
+    values.toList.sortBy(_.created.toEpochSecond(ZoneOffset.UTC))
+  }
 
   override def get(id: String): Option[Job] =
     data.get(id).orElse(loadArchive(id))

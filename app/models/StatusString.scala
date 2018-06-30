@@ -23,7 +23,7 @@ object StatusString {
     override val toString = "error"
   }
 
-  def parse(status: String): StatusString = status match {
+  def apply(status: String): StatusString = status match {
     case "queue" => Queue
     case "process" => Process
     case "done" => Done
@@ -40,7 +40,7 @@ object StatusString {
 
   implicit val jobStatusStringReads =
     Reads[StatusString](j => try {
-      JsSuccess(StatusString.parse(j.as[JsString].value))
+      JsSuccess(StatusString(j.as[JsString].value))
     } catch {
       case e: IllegalArgumentException => JsError(e.toString)
     })

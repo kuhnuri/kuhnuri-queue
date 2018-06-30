@@ -2,7 +2,7 @@ package controllers.v1
 
 import javax.inject._
 import models._
-import models.request.Create
+import models.request.{Create, Filter}
 import play.api.Logger
 import play.api.libs.json._
 import play.api.mvc._
@@ -19,8 +19,9 @@ class ListController @Inject()(queue: Queue, cc: ControllerComponents) extends A
 
   private val logger = Logger(this.getClass)
 
-  def list = Action {
-    val queueList = queue.contents
+  def list(status: Option[String]) = Action {
+    val filter = Filter(status.map(StatusString.apply))
+    val queueList = queue.contents(filter)
 
     Ok(Json.toJson(queueList))
   }

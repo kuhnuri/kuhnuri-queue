@@ -4,7 +4,7 @@ import java.net.URI
 import java.sql.{Connection, ResultSet}
 import java.time.{Clock, Instant, LocalDateTime, ZoneOffset}
 
-import models.request.{Create, JobResult}
+import models.request.{Create, Filter, JobResult}
 import models.{StatusString, Worker}
 import org.scalatest.{BeforeAndAfterEach, TestData}
 import org.scalatestplus.play.PlaySpec
@@ -118,7 +118,7 @@ class DBQueueSpec extends PlaySpec with GuiceOneAppPerTest with BeforeAndAfterEa
 
     "list contents" in withDatabase { implicit connection =>
       val queue = app.injector.instanceOf[Queue]
-      val contents = queue.contents()
+      val contents = queue.contents(Filter(None))
 
       contents.size mustBe 4
       contents(0).id mustBe "a"
