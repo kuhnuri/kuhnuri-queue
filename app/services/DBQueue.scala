@@ -218,27 +218,27 @@ class DBQueue @Inject()(db: Database,
     }
   }
 
-//  override def update(update: Update): Option[Task] = {
-//    db.withConnection { connection =>
-//      //      logger.info("update")
-//      //      val sql = DSL.using(connection, SQLDialect.POSTGRES_9_4)
-//      //      val now = OffsetDateTime.now(clock)
-//      //      val query = sql
-//      //        .update(TASK)
-//      //        .set(TASK.STATUS, Status.valueOf(update.status.get.toString))
-//      //        .set(update.status.get match {
-//      //          case StatusString.Queue => TASK.CREATED
-//      //          case StatusString.Process => TASK.PROCESSING
-//      //          case StatusString.Done => TASK.FINISHED
-//      //          case StatusString.Error => TASK.FINISHED
-//      //        }, now)
-//      //        .where(TASK.UUID.eq(update.id))
-//      //      val res = query
-//      //        .returning(TASK.UUID, TASK.STATUS)
-//      //        .execute()
-//      None
-//    }
-//  }
+  //  override def update(update: Update): Option[Task] = {
+  //    db.withConnection { connection =>
+  //      //      logger.info("update")
+  //      //      val sql = DSL.using(connection, SQLDialect.POSTGRES_9_4)
+  //      //      val now = OffsetDateTime.now(clock)
+  //      //      val query = sql
+  //      //        .update(TASK)
+  //      //        .set(TASK.STATUS, Status.valueOf(update.status.get.toString))
+  //      //        .set(update.status.get match {
+  //      //          case StatusString.Queue => TASK.CREATED
+  //      //          case StatusString.Process => TASK.PROCESSING
+  //      //          case StatusString.Done => TASK.FINISHED
+  //      //          case StatusString.Error => TASK.FINISHED
+  //      //        }, now)
+  //      //        .where(TASK.UUID.eq(update.id))
+  //      //      val res = query
+  //      //        .returning(TASK.UUID, TASK.STATUS)
+  //      //        .execute()
+  //      None
+  //    }
+  //  }
 
   override def request(transtypes: List[String], worker: Worker): Option[Task] =
     db.withConnection { connection =>

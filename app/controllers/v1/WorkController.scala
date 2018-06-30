@@ -1,8 +1,8 @@
 package controllers.v1
 
+import filters.TokenAuthorizationFilter.WORKER_ATTR
 import javax.inject._
 import models.request.JobResult
-import filters.TokenAuthorizationFilter.WORKER_ATTR
 import models.response.Error
 import play.api.Logger
 import play.api.libs.json._
@@ -13,8 +13,8 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 /**
- * Controller for worker communication API.
- */
+  * Controller for worker communication API.
+  */
 @Singleton
 class WorkController @Inject()(dispatcher: Dispatcher, cc: ControllerComponents) extends AbstractController(cc) {
 
@@ -45,16 +45,16 @@ class WorkController @Inject()(dispatcher: Dispatcher, cc: ControllerComponents)
 
   // FIXME this doesn't have to return anything, other than OK/NOK
   def submit = Action.async { request =>
-//    logger.debug("Submit work")
+    //    logger.debug("Submit work")
     request.body.asJson.map { json =>
-//      logger.debug(" submit work " + json.toString())
+      //      logger.debug(" submit work " + json.toString())
       json.validate[JobResult].map {
         case res: JobResult => {
-//          logger.debug("  job result " + res)
+          //          logger.debug("  job result " + res)
           val worker = request.attrs(WORKER_ATTR)
           val submitter: String = res.task.worker.getOrElse(null)
           if (submitter == worker.id) {
-//            logger.debug("Submit work for " + res.job)
+            //            logger.debug("Submit work for " + res.job)
             Future {
               dispatcher.submit(res)
             }.map {

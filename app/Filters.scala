@@ -1,6 +1,5 @@
-import javax.inject._
-
 import filters.TokenAuthorizationFilter
+import javax.inject._
 import play.api._
 import play.api.http.DefaultHttpFilters
 import play.filters.cors.CORSFilter

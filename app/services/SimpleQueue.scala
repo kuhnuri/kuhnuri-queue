@@ -2,7 +2,6 @@ package services
 
 import java.io.IOException
 import java.nio.charset.StandardCharsets.UTF_8
-import java.nio.file.StandardOpenOption.CREATE
 import java.nio.file.{Files, Paths}
 import java.time.{Clock, Duration, LocalDateTime, ZoneOffset}
 import java.util.UUID
@@ -17,10 +16,10 @@ import play.api.libs.json.{JsError, Json}
 import play.api.libs.ws.WSClient
 import play.api.{Configuration, Logger, http}
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
-import scala.collection.JavaConverters._
 
 @Singleton
 class SimpleQueue @Inject()(ws: WSClient,
@@ -169,28 +168,28 @@ class SimpleQueue @Inject()(ws: WSClient,
       .groupBy(_._1)
       .map(_._2.head)
 
-//  override def update(update: Update): Option[Task] = {
-//    data.values.foreach { job =>
-//      val task = job.transtype.find(_.id == update.id)
-//      if (task.isDefined) {
-//        val tasks = job.transtype.map { task =>
-//          if (task.id == update.id) {
-//            task.copy(status = update.status.getOrElse(task.status))
-//          } else {
-//            task
-//          }
-//        }
-//        val res = job.copy(
-//          transtype = tasks,
-//          status = getStatus(tasks)
-//        )
-//        data += res.id -> res
-//        persist()
-//        return task
-//      }
-//    }
-//    None
-//  }
+  //  override def update(update: Update): Option[Task] = {
+  //    data.values.foreach { job =>
+  //      val task = job.transtype.find(_.id == update.id)
+  //      if (task.isDefined) {
+  //        val tasks = job.transtype.map { task =>
+  //          if (task.id == update.id) {
+  //            task.copy(status = update.status.getOrElse(task.status))
+  //          } else {
+  //            task
+  //          }
+  //        }
+  //        val res = job.copy(
+  //          transtype = tasks,
+  //          status = getStatus(tasks)
+  //        )
+  //        data += res.id -> res
+  //        persist()
+  //        return task
+  //      }
+  //    }
+  //    None
+  //  }
 
   override def request(transtypes: List[String], worker: Worker): Option[Task] = {
     def hasQueueTask(job: Job, transtypes: List[String]): Boolean = {
@@ -301,7 +300,7 @@ class SimpleQueue @Inject()(ws: WSClient,
           archive(res)
           data.synchronized {
             data -= res.id
-//            data += res.id -> res
+            //            data += res.id -> res
           }
           persist()
         } else {

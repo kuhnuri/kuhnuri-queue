@@ -16,8 +16,8 @@ trait Queue {
   /** List the contents of the queue. */
   def contents(filter: Filter): Seq[Job]
 
-//  /** Update job status in queue. */
-//  def update(job: Update): Option[Task]
+  //  /** Update job status in queue. */
+  //  def update(job: Update): Option[Task]
 
   //  def cancel(id: String): JobStatus
 }

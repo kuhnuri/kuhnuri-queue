@@ -12,7 +12,7 @@ trait Dispatcher {
     * Request work
     *
     * @param transtypes list of transtypes worker support
-    * @param worker worker requesting work
+    * @param worker     worker requesting work
     * @return job to perform
     */
   def request(transtypes: List[String], worker: Worker): Option[Task]

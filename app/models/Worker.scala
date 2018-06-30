@@ -10,8 +10,8 @@ import play.api.libs.json._
   * Worker information.
   *
   * @param token worker authentication token
-  * @param id worker ID
-  * @param uri worker callback URI
+  * @param id    worker ID
+  * @param uri   worker callback URI
   */
 case class Worker(token: String, id: String, uri: URI)
 
