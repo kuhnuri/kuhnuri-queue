@@ -3,6 +3,7 @@ package controllers.v1
 import javax.inject._
 import models.request.JobResult
 import filters.TokenAuthorizationFilter.WORKER_ATTR
+import models.response.Error
 import play.api.Logger
 import play.api.libs.json._
 import play.api.mvc._
@@ -35,13 +36,10 @@ class WorkController @Inject()(dispatcher: Dispatcher, cc: ControllerComponents)
           }
         }
       }.recoverTotal {
-        e => {
-          logger.error("Detected error A:" + JsError.toJson(e))
-          Future(BadRequest("Detected error A:" + JsError.toJson(e)))
-        }
+        _ => Future(BadRequest(Json.toJson(Error("ERR003"))))
       }
     }.getOrElse {
-      Future(BadRequest("Expecting Json data"))
+      Future(BadRequest(Json.toJson(Error("ERR002"))))
     }
   }
 
@@ -67,16 +65,12 @@ class WorkController @Inject()(dispatcher: Dispatcher, cc: ControllerComponents)
             Future(Forbidden)
           }
         }
-        case _ =>
-          Future(InternalServerError)
+        case _ => Future(InternalServerError)
       }.recoverTotal {
-        e => {
-          logger.error("Detected error B:" + JsError.toJson(e))
-          Future(BadRequest("Detected error B:" + JsError.toJson(e)))
-        }
+        _ => Future(BadRequest(Json.toJson(Error("ERR003"))))
       }
     }.getOrElse {
-      Future(BadRequest("Expecting JSON data"))
+      Future(BadRequest(Json.toJson(Error("ERR002"))))
     }
   }
 }

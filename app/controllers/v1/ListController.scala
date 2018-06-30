@@ -2,6 +2,7 @@ package controllers.v1
 
 import javax.inject._
 import models._
+import models.response.Error
 import models.request.{Create, Filter}
 import play.api.Logger
 import play.api.libs.json._
@@ -20,10 +21,15 @@ class ListController @Inject()(queue: Queue, cc: ControllerComponents) extends A
   private val logger = Logger(this.getClass)
 
   def list(status: Option[String]) = Action {
-    val filter = Filter(status.map(StatusString.apply))
-    val queueList = queue.contents(filter)
+    try {
+      val filter = Filter(status.map(StatusString.apply))
 
-    Ok(Json.toJson(queueList))
+      val queueList = queue.contents(filter)
+
+      Ok(Json.toJson(queueList))
+    } catch {
+      case _: IllegalArgumentException => BadRequest(Json.toJson(Error("ERR001")))
+    }
   }
 
   def details(id: String) = Action {
@@ -51,10 +57,10 @@ class ListController @Inject()(queue: Queue, cc: ControllerComponents) extends A
           }
         }
       }.recoverTotal {
-        e => Future(BadRequest("Detected error:" + JsError.toJson(e)))
+        _ => Future(BadRequest(Json.toJson(Error("ERR003"))))
       }
     }.getOrElse {
-      Future(BadRequest("Expecting Json data"))
+      Future(BadRequest(Json.toJson(Error("ERR002"))))
     }
   }
 
