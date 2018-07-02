@@ -36,7 +36,7 @@ class WorkController @Inject()(dispatcher: Dispatcher, cc: ControllerComponents)
           }
         }
       }.recoverTotal {
-        _ => Future(BadRequest(Json.toJson(Error("ERR003"))))
+        _ => Future(UnprocessableEntity(Json.toJson(Error("ERR003"))))
       }
     }.getOrElse {
       Future(BadRequest(Json.toJson(Error("ERR002"))))
@@ -67,7 +67,7 @@ class WorkController @Inject()(dispatcher: Dispatcher, cc: ControllerComponents)
         }
         case _ => Future(InternalServerError)
       }.recoverTotal {
-        _ => Future(BadRequest(Json.toJson(Error("ERR003"))))
+        _ => Future(UnprocessableEntity(Json.toJson(Error("ERR003"))))
       }
     }.getOrElse {
       Future(BadRequest(Json.toJson(Error("ERR002"))))

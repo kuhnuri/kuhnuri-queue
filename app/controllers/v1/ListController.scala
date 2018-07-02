@@ -57,7 +57,7 @@ class ListController @Inject()(queue: Queue, cc: ControllerComponents) extends A
           }
         }
       }.recoverTotal {
-        _ => Future(BadRequest(Json.toJson(Error("ERR003"))))
+        _ => Future(UnprocessableEntity(Json.toJson(Error("ERR003"))))
       }
     }.getOrElse {
       Future(BadRequest(Json.toJson(Error("ERR002"))))
