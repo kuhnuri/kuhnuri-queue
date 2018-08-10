@@ -31,7 +31,7 @@ class TokenAuthorizationFilter @Inject()(
               nextFilter(requestHeader.withAttrs(attrs))
             case None =>
               logger.info(s"Unrecognized API token $token")
-              logger.info(s"Workers ${WorkerStore.workers}")
+              logger.debug(s"Workers ${WorkerStore.workers}")
               Future(Results.Unauthorized)
           }
         case None =>

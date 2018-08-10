@@ -6,7 +6,7 @@
   <appender name="FILE" class="ch.qos.logback.core.FileAppender">
     <file>${application.home:-.}/logs/application.log</file>
     <encoder>
-      <pattern>%date [%level] from %logger in %thread - %message%n%xException</pattern>
+      <pattern>%date [%level] %logger - %message%n%xException</pattern>
     </encoder>
   </appender>
 
@@ -35,30 +35,30 @@
   <!--logger name="org.jooq" level="INFO" /-->
 
   <logger name="services.DBQueue" level="INFO">
-    <appender-ref ref="ASYNCFILE" />
+    <!--<appender-ref ref="ASYNCFILE" />-->
   </logger>
   <logger name="services.SimpleQueue" level="INFO">
-    <appender-ref ref="ASYNCFILE" />
+    <!--<appender-ref ref="ASYNCFILE" />-->
   </logger>
 
   <logger name="controllers.v1.ListController" level="INFO">
-    <appender-ref ref="ASYNCFILE" />
+    <!--<appender-ref ref="ASYNCFILE" />-->
   </logger>
 
-  <logger name="controllers.v1.WorkController" level="DEBUG">
-    <appender-ref ref="ASYNCFILE" />
+  <logger name="controllers.v1.WorkController" level="INFO">
+    <!--<appender-ref ref="ASYNCFILE" />-->
   </logger>
 
   <logger name="services.SimpleLogStore" level="INFO">
-    <appender-ref ref="ASYNCFILE" />
+    <!--<appender-ref ref="ASYNCFILE" />-->
   </logger>
 
   <logger name="controllers.v1.AuthenticationController" level="INFO">
-    <appender-ref ref="ASYNCFILE" />
+    <!--<appender-ref ref="ASYNCFILE" />-->
   </logger>
 
   <logger name="filters.TokenAuthorizationFilter" level="INFO">
-    <appender-ref ref="ASYNCFILE" />
+    <!--<appender-ref ref="ASYNCFILE" />-->
   </logger>
 
   <root level="WARN">
