@@ -10,7 +10,7 @@ RUN chmod 755 /opt/app/run.sh
 RUN mkdir -p /opt/workspace
 
 EXPOSE 9000
-VOLUME ["/opt/workspace"]
+VOLUME ["/opt/workspace", "/opt/app/logs"]
 
 ENV ENVIRONMENT=production
 
