@@ -28,3 +28,5 @@ generateJOOQ := {
 
 //unmanagedSourceDirectories in Compile += sourceManaged.value / "main"
 unmanagedSourceDirectories in Compile += baseDirectory.value / "src/main/java"
+
+sources in (Compile, doc) := Seq()
