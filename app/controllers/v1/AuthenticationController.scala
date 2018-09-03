@@ -31,6 +31,7 @@ class AuthenticationController @Inject()(configuration: Configuration,
           val token: Try[String] = register(req.value)
           token match {
             case Success(token) =>
+              logger.info(s"Registered worker ${req.value.id}")
               Future(Ok.withHeaders(AUTH_TOKEN_HEADER -> token))
             case Failure(_) =>
               Future(Unauthorized)
