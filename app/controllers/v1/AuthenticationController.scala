@@ -28,12 +28,14 @@ class AuthenticationController @Inject()(configuration: Configuration,
     request.body.asJson.map { json =>
       json.validate[Register] match {
         case req: JsSuccess[Register] => {
+          logger.info(s"Attempting to register ${req.value.id}")
           val token: Try[String] = register(req.value)
           token match {
             case Success(token) =>
               logger.info(s"Registered worker ${req.value.id}")
               Future(Ok.withHeaders(AUTH_TOKEN_HEADER -> token))
             case Failure(_) =>
+              logger.info(s"Failed to register worker ${req.value.id}")
               Future(Unauthorized)
           }
         }
