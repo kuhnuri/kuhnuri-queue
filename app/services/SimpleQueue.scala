@@ -367,6 +367,9 @@ class SimpleQueue @Inject()(ws: WSClient,
     */
   protected def archive(res: Job): Unit = {
     val file = archiveDir.resolve(s"${res.id}.json")
+    if (!Files.exists(file.getParent)) {
+      Files.createDirectories(file.getParent)
+    }
     val out = Files.newBufferedWriter(file, UTF_8)
     try {
       out.write(Json.toJson(res).toString())
