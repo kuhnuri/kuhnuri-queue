@@ -1,4 +1,4 @@
-FROM openjdk:8-jre-alpine
+FROM openjdk:10
 
 RUN mkdir -p /opt/app/conf
 COPY target/universal/stage/conf /opt/app/conf
