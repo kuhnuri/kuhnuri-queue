@@ -11,4 +11,5 @@ fi
 if [ -f /opt/app/RUNNING_PID ]; then
     rm /opt/app/RUNNING_PID
 fi
+
 exec java $JAVA_OPTS $PLAY_OPTS -cp $CLASSPATH play.core.server.ProdServerStart
