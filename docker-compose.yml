@@ -3,7 +3,3 @@ services:
   queue:
     image: "jelovirt/kuhnuri_queue:latest"
     build: .
-    ports:
-      - 9001:9000
-    environment:
-      APPLICATION_SECRET: "j`1L]T7whPk<@2Q:/TLvI^`qKiK^ZL6zyza5lz9yQY>ifmsE8/?II:]?16dTp24:"

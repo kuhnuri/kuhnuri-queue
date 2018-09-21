@@ -12,7 +12,5 @@ RUN mkdir -p /opt/workspace
 EXPOSE 9000
 VOLUME ["/opt/workspace", "/opt/app/logs"]
 
-ENV ENVIRONMENT=production
-
 WORKDIR /opt/app
 ENTRYPOINT ["./run.sh"]
