@@ -6,7 +6,7 @@ version := "1.0-SNAPSHOT"
 
 lazy val root = (project in file(".")).enablePlugins(PlayScala)
 
-scalaVersion := "2.12.4"
+scalaVersion := "2.12.6"
 
 libraryDependencies += jdbc
 libraryDependencies += ehcache
@@ -23,7 +23,7 @@ libraryDependencies += "org.mindrot" % "jbcrypt" % "0.4"
 
 val generateJOOQ = taskKey[Seq[File]]("Generate JooQ classes")
 generateJOOQ := {
-  toError((runner in Compile).value.run("org.jooq.util.GenerationTool", (fullClasspath in Compile).value.files, Array("conf/queue.xml"), streams.value.log))
+  (runner in Compile).value.run("org.jooq.util.GenerationTool", (fullClasspath in Compile).value.files, Array("conf/queue.xml"), streams.value.log).failed foreach (sys error _.getMessage)
   ((sourceManaged.value / "main/generated") ** "*.java").get
 }
 
