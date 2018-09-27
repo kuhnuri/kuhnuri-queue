@@ -10,7 +10,8 @@ RUN chmod 755 /opt/app/run.sh
 RUN mkdir -p /opt/workspace
 
 EXPOSE 9000
-VOLUME ["/opt/workspace", "/opt/app/logs"]
+VOLUME ["/var/log/app", "/tmp/app", "/var/lib/app"]
+
 
 WORKDIR /opt/app
 ENTRYPOINT ["./run.sh"]

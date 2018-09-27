@@ -29,7 +29,7 @@ class WorkSpec extends PlaySpec with GuiceOneAppPerSuite with BeforeAndAfter {
         "username" -> "worker",
         "hash" -> "$2a$10$c.9YXZkSrElx2dz8udP8vOlZSfF/ftsf4EClIORt8ILWd8vciLING"
       )),
-      "queue.temp" -> System.getProperty("java.io.tmpdir")
+      "queue.data" -> System.getProperty("java.io.tmpdir")
     ))
     .overrides(
       bind(classOf[Dispatcher]).to(classOf[DummyQueue]),

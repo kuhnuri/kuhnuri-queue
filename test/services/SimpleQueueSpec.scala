@@ -16,7 +16,7 @@ class SimpleQueueSpec extends FlatSpec with Matchers with BeforeAndAfter {
 
   private val app = new GuiceApplicationBuilder()
     .configure(Map(
-      "queue.temp" -> System.getProperty("java.io.tmpdir"),
+      "queue.data" -> System.getProperty("java.io.tmpdir"),
       "queue.timeout" -> "10m",
       "queue.users" -> List(Map(
         "username" -> "worker",

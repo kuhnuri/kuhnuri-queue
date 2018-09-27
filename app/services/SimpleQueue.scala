@@ -29,8 +29,8 @@ class SimpleQueue @Inject()(ws: WSClient,
 
   private val logger = Logger(this.getClass)
   private val timeout = Duration.ofMillis(configuration.getMillis("queue.timeout"))
-  private val archiveDir = Paths.get(configuration.get[String]("queue.temp"), "archive")
-  private val stateFile = Paths.get(configuration.get[String]("queue.temp"), "queue.json")
+  private val archiveDir = Paths.get(configuration.get[String]("queue.data"), "archive")
+  private val stateFile = Paths.get(configuration.get[String]("queue.data"), "queue.json")
 
   val data: mutable.Map[String, Job] = load()
 
