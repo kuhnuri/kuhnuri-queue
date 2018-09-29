@@ -95,15 +95,6 @@ class DBQueueSpec extends PlaySpec with GuiceOneAppPerTest with BeforeAndAfterEa
     }
   }
 
-  private def withDatabase(block: (Connection) => Unit): Unit = {
-    val connection = database.getConnection()
-    try {
-      block(connection)
-    } finally {
-      connection.close()
-    }
-  }
-
   "Queue" should {
     "add new job" in withDatabase { implicit connection =>
       val queue = app.injector.instanceOf[Queue]
@@ -135,28 +126,6 @@ class DBQueueSpec extends PlaySpec with GuiceOneAppPerTest with BeforeAndAfterEa
       contents(3).id mustBe "d"
       contents(3).status mustBe StatusString.Error
     }
-  }
-
-  private def list[T](query: String, map: ResultSet => T)(implicit connection: Connection): Seq[T] = {
-    val taskRes = connection.prepareStatement(query).executeQuery()
-    val buf = mutable.Buffer[T]()
-    while (taskRes.next()) {
-      buf += map(taskRes)
-    }
-    buf.toList
-  }
-
-  private def map[K, T](query: String, key: ResultSet => K, value: ResultSet => T)(implicit connection: Connection): Map[K, T] = {
-    val taskRes = connection.prepareStatement(query).executeQuery()
-    val buf = mutable.Buffer[(K, T)]()
-    while (taskRes.next()) {
-      buf += key(taskRes) -> value(taskRes)
-    }
-    buf.toMap
-  }
-
-  private def insert(query: String)(implicit connection: Connection): Unit = {
-    connection.createStatement().execute(query)
   }
 
   "Dispatcher" should {
@@ -213,10 +182,16 @@ class DBQueueSpec extends PlaySpec with GuiceOneAppPerTest with BeforeAndAfterEa
         res => res.getInt(1),
         res => res.getString(2))
 
-      taskRes(1) mustBe "process"
-      taskRes(2) mustBe "queue"
-      taskRes(3) mustBe "process"
-      taskRes(4) mustBe "queue"
+      taskRes mustBe Map(
+        1 -> "process",
+        2 -> "queue",
+        3 -> "process",
+        4 -> "queue",
+        5 -> "done",
+        6 -> "process",
+        7 -> "done",
+        8 -> "error",
+      )
     }
 
     "offer second task of first job" in withDatabase { implicit connection =>
@@ -230,10 +205,16 @@ class DBQueueSpec extends PlaySpec with GuiceOneAppPerTest with BeforeAndAfterEa
         res => res.getInt(1),
         res => res.getString(2))
 
-      taskRes(1) mustBe "done"
-      taskRes(2) mustBe "process"
-      taskRes(3) mustBe "process"
-      taskRes(4) mustBe "queue"
+      taskRes mustBe Map(
+        1 -> "done",
+        2 -> "process",
+        3 -> "process",
+        4 -> "queue",
+        5 -> "done",
+        6 -> "queue",
+        7 -> "done",
+        8 -> "error",
+      )
     }
   }
 
@@ -329,5 +310,32 @@ class DBQueueSpec extends PlaySpec with GuiceOneAppPerTest with BeforeAndAfterEa
   //    job.transtype.head.output shouldBe Some("file:/Volumes/tmp/out/userguide.zip")
   //    job.finished.isDefined shouldBe false
   //  }
+
+  private def withDatabase(block: (Connection) => Unit): Unit = {
+    val connection = database.getConnection()
+    try {
+      block(connection)
+    } finally {
+      connection.close()
+    }
+  }
+
+  private def list[T](query: String, map: ResultSet => T)(implicit connection: Connection): Seq[T] = {
+    val taskRes = connection.prepareStatement(query).executeQuery()
+    val buf = mutable.Buffer[T]()
+    while (taskRes.next()) {
+      buf += map(taskRes)
+    }
+    buf.toList
+  }
+
+  private def map[K, T](query: String, key: ResultSet => K, value: ResultSet => T)(implicit connection: Connection): Map[K, T] = {
+    val taskRes = connection.prepareStatement(query).executeQuery()
+    val buf = mutable.Buffer[(K, T)]()
+    while (taskRes.next()) {
+      buf += key(taskRes) -> value(taskRes)
+    }
+    buf.toMap
+  }
 }
 

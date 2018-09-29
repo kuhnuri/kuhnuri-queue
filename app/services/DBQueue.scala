@@ -143,7 +143,8 @@ class DBQueue @Inject()(db: Database,
                        FROM task
                        GROUP BY job
                      ) AS task
-            ON job.id = task.job;""";
+            ON job.id = task.job
+        ORDER BY job.created;""";
       val res = sql
         .fetch(query)
         .asInstanceOf[Result[Record7[String, String, String, Integer, OffsetDateTime, OffsetDateTime, String]]]
