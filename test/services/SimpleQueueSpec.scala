@@ -11,6 +11,13 @@ import play.api.inject.guice.GuiceApplicationBuilder
 
 class SimpleQueueSpec extends FlatSpec with Matchers with BeforeAndAfter {
 
+  private val IN_URL = "file://in"
+  private val OUT_URL = "file://out"
+  private val JOB_A = "id-A"
+  private val TASK_A = "id-A_1"
+  private val TASK_B = "id-A_2"
+  private val WORKER_ID = "worker-id"
+
   private val clock: Clock = Clock.fixed(Instant.now(), ZoneOffset.UTC.normalized())
   private val now = LocalDateTime.now(clock).atOffset(ZoneOffset.UTC)
 
@@ -47,7 +54,7 @@ class SimpleQueueSpec extends FlatSpec with Matchers with BeforeAndAfter {
     .build()
 
   private val queue = app.injector.instanceOf[Dispatcher].asInstanceOf[DummyQueue]
-  private val worker = Worker("token", "worker-id", URI.create("worker-uri"))
+  private val worker = Worker("token", WORKER_ID, URI.create("worker-uri"))
 
   before {
     queue.data.clear()
@@ -61,12 +68,10 @@ class SimpleQueueSpec extends FlatSpec with Matchers with BeforeAndAfter {
   }
 
   "Queue with finished items" should "return nothing" in {
-    queue.data += "id-A" -> Job("id-A",
-      "file:/src/root.ditamap",
-      "file:/dst/",
+    queue.data += JOB_A -> Job(JOB_A, IN_URL, OUT_URL,
       List(
-        Task("id-A_1", "id-A", Some("file:/src/root.ditamap"), Some("file:/dst/"), "html5", Map.empty,
-          StatusString.Done, Some(queue.now.minusMinutes(10)), Some("worker-id"), Some(queue.now.minusMinutes(5)))
+        Task(TASK_A, JOB_A, Some(IN_URL), Some(OUT_URL), "html5", Map.empty,
+          StatusString.Done, Some(queue.now.minusMinutes(10)), Some(WORKER_ID), Some(queue.now.minusMinutes(5)))
       ),
       0, queue.now.minusHours(1), Some(queue.now.minusMinutes(5)), StatusString.Done)
 
@@ -77,21 +82,19 @@ class SimpleQueueSpec extends FlatSpec with Matchers with BeforeAndAfter {
   }
 
   "Job with single task" should "return first task" in {
-    queue.data += "id-A" -> Job("id-A",
-      "file:/src/root.ditamap",
-      "file:/dst/",
+    queue.data += JOB_A -> Job(JOB_A, IN_URL, OUT_URL,
       List(
-        Task("id-A_1", "id-A", None, None, "html5", Map.empty, StatusString.Queue, None, None, None)
+        Task(TASK_A, JOB_A, None, None, "html5", Map.empty, StatusString.Queue, None, None, None)
       ),
       0, queue.now.minusHours(1), None, StatusString.Queue)
 
     queue.request(List("html5"), worker) match {
       case Some(res) => {
         res.transtype shouldBe "html5"
-        res.id shouldBe "id-A_1"
-        res.input shouldBe Some("file:/src/root.ditamap")
-        res.output shouldBe Some("file:/dst/")
-        res.worker shouldBe Some("worker-id")
+        res.id shouldBe TASK_A
+        res.input shouldBe Some(IN_URL)
+        res.output shouldBe Some(OUT_URL)
+        res.worker shouldBe Some(WORKER_ID)
         res.processing shouldBe Some(LocalDateTime.now(clock))
         res.status shouldBe StatusString.Process
       }
@@ -100,22 +103,20 @@ class SimpleQueueSpec extends FlatSpec with Matchers with BeforeAndAfter {
   }
 
   "Job with two tasks" should "return first task" in {
-    queue.data += "id-A" -> Job("id-A",
-      "file:/src/root.ditamap",
-      "file:/dst/",
+    queue.data += JOB_A -> Job(JOB_A, IN_URL, OUT_URL,
       List(
-        Task("id-A_1", "id-A", None, None, "graphics", Map.empty, StatusString.Queue, None, None, None),
-        Task("id-A_2", "id-A", None, None, "html5", Map.empty, StatusString.Queue, None, None, None)
+        Task(TASK_A, JOB_A, None, None, "graphics", Map.empty, StatusString.Queue, None, None, None),
+        Task(TASK_B, JOB_A, None, None, "html5", Map.empty, StatusString.Queue, None, None, None)
       ),
       0, queue.now.minusHours(1), None, StatusString.Queue)
 
     queue.request(List("graphics"), worker) match {
       case Some(res) => {
         res.transtype shouldBe "graphics"
-        res.id shouldBe "id-A_1"
-        res.input shouldBe Some("file:/src/root.ditamap")
+        res.id shouldBe TASK_A
+        res.input shouldBe Some(IN_URL)
         res.output shouldBe None
-        res.worker shouldBe Some("worker-id")
+        res.worker shouldBe Some(WORKER_ID)
         res.processing shouldBe Some(LocalDateTime.now(clock))
         res.status shouldBe StatusString.Process
       }
@@ -124,24 +125,22 @@ class SimpleQueueSpec extends FlatSpec with Matchers with BeforeAndAfter {
   }
 
   "Job with one successful task" should "return second task" in {
-    queue.data += "id-A" -> Job("id-A",
-      "file:/src/root.ditamap",
-      "file:/dst/",
+    queue.data += JOB_A -> Job(JOB_A, IN_URL, OUT_URL,
       List(
-        Task("id-A_1", "id-A", Some("file:/src/root.ditamap"), Some("file:/dst/userguide.zip"),
-          "html5", Map.empty, StatusString.Done, Some(queue.now.minusMinutes(10)), Some("worker-id"),
+        Task(TASK_A, JOB_A, Some(IN_URL), Some("file:/dst/userguide.zip"),
+          "html5", Map.empty, StatusString.Done, Some(queue.now.minusMinutes(10)), Some(WORKER_ID),
           Some(queue.now.minusMinutes(1))),
-        Task("id-A_2", "id-A", None, None, "upload", Map.empty, StatusString.Queue, None, None, None)
+        Task(TASK_B, JOB_A, None, None, "upload", Map.empty, StatusString.Queue, None, None, None)
       ),
       0, queue.now.minusHours(1), None, StatusString.Process)
 
     queue.request(List("html5", "upload"), worker) match {
       case Some(res) => {
         res.transtype shouldBe "upload"
-        res.id shouldBe "id-A_2"
+        res.id shouldBe TASK_B
         res.input shouldBe Some("file:/dst/userguide.zip")
-        res.output shouldBe Some("file:/dst/")
-        res.worker shouldBe Some("worker-id")
+        res.output shouldBe Some(OUT_URL)
+        res.worker shouldBe Some(WORKER_ID)
         res.processing shouldBe Some(LocalDateTime.now(clock))
         res.status shouldBe StatusString.Process
       }
@@ -150,13 +149,11 @@ class SimpleQueueSpec extends FlatSpec with Matchers with BeforeAndAfter {
   }
 
   "Job with one active task" should "not return second task" in {
-    queue.data += "id-A" -> Job("id-A",
-      "file:/src/root.ditamap",
-      "file:/dst/",
+    queue.data += JOB_A -> Job(JOB_A, IN_URL, OUT_URL,
       List(
-        Task("id-A_1", "id-A", Some("file:/src/root.ditamap"), Some("file:/dst/"), "html5", Map.empty,
-          StatusString.Process, Some(queue.now.minusMinutes(10)), Some("worker-id"), None),
-        Task("id-A_2", "id-A", None, None, "upload", Map.empty, StatusString.Queue, None, None, None)
+        Task(TASK_A, JOB_A, Some(IN_URL), Some(OUT_URL), "html5", Map.empty,
+          StatusString.Process, Some(queue.now.minusMinutes(10)), Some(WORKER_ID), None),
+        Task(TASK_B, JOB_A, None, None, "upload", Map.empty, StatusString.Queue, None, None, None)
       ),
       0, queue.now.minusHours(1), None, StatusString.Process)
 
@@ -168,20 +165,18 @@ class SimpleQueueSpec extends FlatSpec with Matchers with BeforeAndAfter {
 
 
   "Job with single active task" should "accept job with update output" in {
-    queue.data += "id-A" -> Job("id-A",
-      "file:/src/root.ditamap",
-      "file:/dst/",
+    queue.data += JOB_A -> Job(JOB_A, IN_URL, OUT_URL,
       List(
-        Task("id-A_1", "id-A", Some("file:/src/root.ditamap"), Some("file:/dst/"), "html5", Map.empty,
-          StatusString.Process, Some(queue.now), Some("worker-id"), None)
+        Task(TASK_A, JOB_A, Some(IN_URL), Some(OUT_URL), "html5", Map.empty,
+          StatusString.Process, Some(queue.now), Some(WORKER_ID), None)
       ),
       0, queue.now.minusHours(1), None, StatusString.Process)
 
-    val res = Task("id-A_1", "id-A", Some("file:/src/root.ditamap"), Some("file:/dst/userguide.zip"), "html5",
-      Map.empty, StatusString.Done, Some(queue.now), Some("worker-id"), None)
+    val res = Task(TASK_A, JOB_A, Some(IN_URL), Some("file:/dst/userguide.zip"), "html5",
+      Map.empty, StatusString.Done, Some(queue.now), Some(WORKER_ID), None)
     queue.submit(JobResult(res, List.empty))
 
-    val job = queue.data("id-A")
+    val job = queue.data(JOB_A)
     job.output shouldBe "file:/dst/userguide.zip"
     job.transtype.head.status shouldBe StatusString.Done
     job.transtype.head.output shouldBe Some("file:/dst/userguide.zip")
@@ -190,24 +185,22 @@ class SimpleQueueSpec extends FlatSpec with Matchers with BeforeAndAfter {
   }
 
   "Job with first active task" should "accept job with update output" in {
-    queue.data += "id-A" -> Job("id-A",
-      "file:/src/root.ditamap",
-      "file:/dst/",
+    queue.data += JOB_A -> Job(JOB_A, IN_URL, OUT_URL,
       List(
-        Task("id-A_1", "id-A", Some("file:/src/root.ditamap"), None, "graphics", Map.empty, StatusString.Process,
-          Some(queue.now.minusMinutes(3)), Some("worker-id"), None),
-        Task("id-A_2", "id-A", None, None, "html5", Map.empty, StatusString.Queue, None, None, None)
+        Task(TASK_A, JOB_A, Some(IN_URL), None, "graphics", Map.empty, StatusString.Process,
+          Some(queue.now.minusMinutes(3)), Some(WORKER_ID), None),
+        Task(TASK_B, JOB_A, None, None, "html5", Map.empty, StatusString.Queue, None, None, None)
       ),
       0, queue.now.minusHours(1), None, StatusString.Process)
 
-    val res = Task("id-A_1", "id-A", Some("file:/src/root.ditamap"), Some("file:/tmp/userguide.zip"),
-      "html5", Map.empty, StatusString.Done, Some(queue.now.minusMinutes(1)), Some("worker-id"), Some(queue.now))
+    val res = Task(TASK_A, JOB_A, Some(IN_URL), Some("file:/tmp/userguide.zip"),
+      "html5", Map.empty, StatusString.Done, Some(queue.now.minusMinutes(1)), Some(WORKER_ID), Some(queue.now))
     queue.submit(JobResult(res, List.empty))
 
-    val job = queue.data("id-A")
-    job.output shouldBe "file:/dst/"
+    val job = queue.data(JOB_A)
+    job.output shouldBe OUT_URL
     job.transtype(0).status shouldBe StatusString.Done
-    job.transtype(0).input shouldBe Some("file:/src/root.ditamap")
+    job.transtype(0).input shouldBe Some(IN_URL)
     job.transtype(0).output shouldBe Some("file:/tmp/userguide.zip")
     job.transtype(1).status shouldBe StatusString.Queue
     job.transtype(1).input shouldBe None
@@ -217,50 +210,46 @@ class SimpleQueueSpec extends FlatSpec with Matchers with BeforeAndAfter {
   }
 
   "Job with second active task" should "accept job with update output" in {
-    queue.data += "id-A" -> Job("id-A",
-      "file:/src/root.ditamap",
-      "file:/dst/",
+    queue.data += JOB_A -> Job(JOB_A, IN_URL, OUT_URL,
       List(
-        Task("id-A_1", "id-A", Some("file:/src/root.ditamap"), Some("file:/dst/userguide.zip"),
-          "graphics", Map.empty, StatusString.Done, Some(queue.now.minusMinutes(3)), Some("worker-id"),
+        Task(TASK_A, JOB_A, Some(IN_URL), Some("file:/dst/userguide.zip"),
+          "graphics", Map.empty, StatusString.Done, Some(queue.now.minusMinutes(3)), Some(WORKER_ID),
           Some(queue.now.minusMinutes(2))),
-        Task("id-A_2", "id-A", Some("file:/dst/userguide.zip"), Some("file:/dst/"), "html5", Map.empty,
-          StatusString.Process, Some(queue.now.minusMinutes(1)), Some("worker-id"), None)
+        Task(TASK_B, JOB_A, Some("file:/dst/userguide.zip"), Some(OUT_URL), "html5", Map.empty,
+          StatusString.Process, Some(queue.now.minusMinutes(1)), Some(WORKER_ID), None)
       ),
       0, queue.now.minusHours(1), None, StatusString.Process)
 
-    val res = Task("id-A_2", "id-A", Some("file:/dst/userguide.zip"), Some("file:/dst/"),
-      "html5", Map.empty, StatusString.Done, Some(queue.now.minusMinutes(1)), Some("worker-id"), Some(queue.now))
+    val res = Task(TASK_B, JOB_A, Some("file:/dst/userguide.zip"), Some(OUT_URL),
+      "html5", Map.empty, StatusString.Done, Some(queue.now.minusMinutes(1)), Some(WORKER_ID), Some(queue.now))
     queue.submit(JobResult(res, List.empty))
 
-    val job = queue.data("id-A")
-    job.output shouldBe "file:/dst/"
+    val job = queue.data(JOB_A)
+    job.output shouldBe OUT_URL
     job.transtype(0).status shouldBe StatusString.Done
     job.transtype(0).output shouldBe Some("file:/dst/userguide.zip")
     job.transtype(1).status shouldBe StatusString.Done
     job.transtype(1).input shouldBe Some("file:/dst/userguide.zip")
-    job.transtype(1).output shouldBe Some("file:/dst/")
+    job.transtype(1).output shouldBe Some(OUT_URL)
     job.finished shouldBe Some(queue.now)
     job.status shouldBe StatusString.Done
   }
 
   "Job with last active task" should "accept job with update output" in {
-    queue.data += "id-A" -> Job("id-A",
-      "file:/src/root.ditamap",
-      "file:/dst/",
+    queue.data += JOB_A -> Job(JOB_A, IN_URL, OUT_URL,
       List(
-        Task("id-A_1", "id-A", Some("file:/src/root.ditamap"), Some("file:/dst/"), "html5", Map.empty,
-          StatusString.Process, Some(queue.now), Some("worker-id"), None),
-        Task("id-A_2", "id-A", None, None, "upload", Map.empty, StatusString.Queue, None, None, None)
+        Task(TASK_A, JOB_A, Some(IN_URL), Some(OUT_URL), "html5", Map.empty,
+          StatusString.Process, Some(queue.now), Some(WORKER_ID), None),
+        Task(TASK_B, JOB_A, None, None, "upload", Map.empty, StatusString.Queue, None, None, None)
       ),
       0, queue.now.minusHours(1), None, StatusString.Process)
 
-    val res = Task("id-A_1", "id-A", Some("file:/src/root.ditamap"), Some("file:/dst/userguide.zip"),
-      "html5", Map.empty, StatusString.Process, Some(queue.now), Some("worker-id"), None)
+    val res = Task(TASK_A, JOB_A, Some(IN_URL), Some("file:/dst/userguide.zip"),
+      "html5", Map.empty, StatusString.Process, Some(queue.now), Some(WORKER_ID), None)
     queue.submit(JobResult(res, List.empty))
 
-    val job = queue.data("id-A")
-    job.output shouldBe "file:/dst/"
+    val job = queue.data(JOB_A)
+    job.output shouldBe OUT_URL
     job.transtype(0).status shouldBe StatusString.Process
     job.transtype(0).output shouldBe Some("file:/dst/userguide.zip")
     job.transtype(1).status shouldBe StatusString.Queue
@@ -271,22 +260,20 @@ class SimpleQueueSpec extends FlatSpec with Matchers with BeforeAndAfter {
   }
 
   "Submit with new task parameters" should "be added to work parameters" in {
-    queue.data += "id-A" -> Job("id-A",
-      "file:/src/root.ditamap",
-      "file:/dst/",
+    queue.data += JOB_A -> Job(JOB_A, IN_URL, OUT_URL,
       List(
-        Task("id-A_1", "id-A", Some("file:/src/root.ditamap"), Some("file:/dst/"), "html5",
+        Task(TASK_A, JOB_A, Some(IN_URL), Some(OUT_URL), "html5",
           Map("a" -> "A", "b" -> "B"),
-          StatusString.Process, Some(queue.now.minusHours(1)), Some("worker-id"), None)
+          StatusString.Process, Some(queue.now.minusHours(1)), Some(WORKER_ID), None)
       ),
       0, queue.now.minusHours(2), None, StatusString.Process)
 
-    val res = Task("id-A_1", "id-A", Some("file:/src/root.ditamap"), Some("file:/dst/userguide.zip"), "html5",
-      Map("b" -> "C", "d" -> "D"), StatusString.Done, Some(queue.now.minusHours(1)), Some("worker-id"),
+    val res = Task(TASK_A, JOB_A, Some(IN_URL), Some("file:/dst/userguide.zip"), "html5",
+      Map("b" -> "C", "d" -> "D"), StatusString.Done, Some(queue.now.minusHours(1)), Some(WORKER_ID),
       Some(queue.now))
     queue.submit(JobResult(res, List.empty))
 
-    val job = queue.data("id-A")
+    val job = queue.data(JOB_A)
     job.transtype(0).params shouldBe Map("a" -> "A", "b" -> "C", "d" -> "D")
   }
 

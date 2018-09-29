@@ -280,6 +280,9 @@ class DBQueue @Inject()(db: Database,
         .returning(TASK.UUID, TASK.ID, TASK.JOB, TASK.POSITION, TASK.STATUS, TASK.PROCESSING)
         .fetchOne()
 
+      if (res == null) {
+        return None
+      }
       val (input: String, output: String, jobId: String) = res.getPosition.intValue() match {
         case 1 => {
           val job = sql

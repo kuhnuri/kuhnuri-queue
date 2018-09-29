@@ -22,7 +22,15 @@ import scala.io.Source
   * You can mock out a whole application including requests, plugins etc.
   * For more information, consult the wiki.
   */
+
 class DBQueueSpec extends PlaySpec with GuiceOneAppPerTest with BeforeAndAfterEach {
+
+  private val IN_URL = "file://in"
+  private val OUT_URL = "file://out"
+  private val JOB_A = "id-A"
+  private val TASK_A = "id-A_1"
+  private val TASK_B = "id-A_2"
+  private val WORKER_ID = "worker-id"
 
   private val clock: Clock = Clock.fixed(Instant.now(), ZoneOffset.UTC.normalized())
   private val now = LocalDateTime.now(clock).atOffset(ZoneOffset.UTC)
@@ -99,10 +107,7 @@ class DBQueueSpec extends PlaySpec with GuiceOneAppPerTest with BeforeAndAfterEa
   "Queue" should {
     "add new job" in withDatabase { implicit connection =>
       val queue = app.injector.instanceOf[Queue]
-      val create = Create(
-        "file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap",
-        "file:/Volumes/tmp/out/", List("html5", "upload"), None, Map.empty
-      )
+      val create = Create(IN_URL, OUT_URL, List("html5", "upload"), None, Map.empty)
       queue.add(create)
 
       val jobRes = map("SELECT count(ID) FROM job",
@@ -150,7 +155,35 @@ class DBQueueSpec extends PlaySpec with GuiceOneAppPerTest with BeforeAndAfterEa
     buf.toMap
   }
 
-  "Request" should {
+  private def insert(query: String)(implicit connection: Connection): Unit = {
+    connection.createStatement().execute(query)
+  }
+
+  "Dispatcher" should {
+    "Empty queue should return nothing" in {
+      val queue = app.injector.instanceOf[Dispatcher]
+      queue.request(List("unsupported"), worker) match {
+        case Some(res) => fail
+        case None =>
+      }
+    }
+
+    //    "return nothing for finished items" in withDatabase { implicit connection =>
+    //      insert("""
+    //        """)
+    //      queue.data += JOB_A -> Job(JOB_A, IN_URL, OUT_URL,
+    //        List(
+    //          Task(TASK_A, JOB_A, Some(IN_URL), Some(OUT_URL), "html5", Map.empty,
+    //            StatusString.Done, Some(queue.now.minusMinutes(10)), Some(WORKER_ID), Some(queue.now.minusMinutes(5)))
+    //        ),
+    //        0, queue.now.minusHours(1), Some(queue.now.minusMinutes(5)), StatusString.Done)
+    //
+    //      queue.request(List("html5"), worker) match {
+    //        case Some(res) => fail
+    //        case None =>
+    //      }
+    //    }
+
     "offer first job" in withDatabase { implicit connection =>
       val dispatcher = app.injector.instanceOf[Dispatcher]
       dispatcher.request(List("html5"), worker)
@@ -159,10 +192,16 @@ class DBQueueSpec extends PlaySpec with GuiceOneAppPerTest with BeforeAndAfterEa
         res => res.getInt(1),
         res => res.getString(2))
 
-      taskRes(1) mustBe "process"
-      taskRes(2) mustBe "queue"
-      taskRes(3) mustBe "process"
-      taskRes(4) mustBe "queue"
+      taskRes mustBe Map(
+        1 -> "process",
+        2 -> "queue",
+        3 -> "process",
+        4 -> "queue",
+        5 -> "done",
+        6 -> "queue",
+        7 -> "done",
+        8 -> "error",
+      )
     }
 
     "offer second job" in withDatabase { implicit connection =>
@@ -198,75 +237,68 @@ class DBQueueSpec extends PlaySpec with GuiceOneAppPerTest with BeforeAndAfterEa
     }
   }
 
-  //  "Empty queue" should "return nothing" in {
-  //    queue.request(List("unsupported"), worker) match {
-  //      case Some(res) => fail
-  //      case None =>
-  //    }
-  //  }
-  //
   //  "Job with single task" should "return first task" in {
-  //    queue.data += "id-A" -> Job("id-A",
-  //      "file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap",
-  //      "file:/Volumes/tmp/out/",
+  //    queue.data += JOB_A -> Job(JOB_A,
+  //      IN_URL,
+  //      OUT_URL,
   //      List(
-  //        Task("id-A_1", "id-A", None, None, "html5", Map.empty, StatusString.Queue, None, None, None)
+  //        Task(TASK_A, JOB_A, None, None, "html5", Map.empty, StatusString.Queue, None, None, None)
   //      ),
   //      0, queue.now.minusHours(1), None)
   //
   //    queue.request(List("html5"), worker) match {
   //      case Some(res) => {
   //        res.transtype shouldBe "html5"
-  //        res.id shouldBe "id-A_1"
-  //        res.input shouldBe Some("file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap")
-  //        res.output shouldBe Some("file:/Volumes/tmp/out/")
-  //        res.worker shouldBe Some("worker-id")
+  //        res.id shouldBe TASK_A
+  //        res.input shouldBe Some(IN_URL)
+  //        res.output shouldBe Some(OUT_URL)
+  //        res.worker shouldBe Some(WORKER_ID)
   //      }
   //      case None => fail
   //    }
   //  }
   //
   //  "Job with one successful task" should "return second task" in {
-  //    queue.data += "id-A" -> Job("id-A",
-  //      "file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap",
-  //      "file:/Volumes/tmp/out/",
+  //    queue.data += JOB_A -> Job(JOB_A,
+  //      IN_URL,
+  //      OUT_URL,
   //      List(
-  //        Task("id-A_1", "id-A", Some( "file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap"),
+  //        Task(TASK_A, JOB_A, Some( IN_URL),
   //          Some("file:/Volumes/tmp/out/userguide.zip"), "html5", Map.empty, StatusString.Done,
-  //          Some(queue.now.minusMinutes(10)), Some("worker-id"), Some(queue.now.minusMinutes(1))),
-  //        Task("id-A_2", "id-A", None, None, "upload", Map.empty, StatusString.Queue, None, None, None)
+  //          Some(queue.now.minusMinutes(10)), Some(WORKER_ID), Some(queue.now.minusMinutes(1))),
+  //        Task(TASK_B, JOB_A, None, None, "upload", Map.empty, StatusString.Queue, None, None, None)
   //      ),
   //      0, queue.now.minusHours(1), None)
   //
   //    queue.request(List("upload"), worker) match {
   //      case Some(res) => {
   //        res.transtype shouldBe "upload"
-  //        res.id shouldBe "id-A_2"
+  //        res.id shouldBe TASK_B
   //        res.input shouldBe Some("file:/Volumes/tmp/out/userguide.zip")
-  //        res.output shouldBe Some("file:/Volumes/tmp/out/")
-  //        res.worker shouldBe Some("worker-id")
+  //        res.output shouldBe Some(OUT_URL)
+  //        res.worker shouldBe Some(WORKER_ID)
   //      }
   //      case None => fail
   //    }
   //  }
   //
   //  "Job with single active task" should "accept job with update output" in {
-  //    queue.data += "id-A" -> Job("id-A",
-  //      "file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap",
-  //      "file:/Volumes/tmp/out/",
+  //    queue.data += JOB_A -> Job(JOB_A,
+  //      IN_URL,
+  //      OUT_URL,
   //      List(
-  //        Task("id-A_1", "id-A", Some("file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap"),
-  //          Some("file:/Volumes/tmp/out/"), "html5", Map.empty, StatusString.Process,
-  //          Some(queue.now), Some("worker-id"), None)
+  //        Task(TASK_A, JOB_A, Some(IN_URL),
+  //          Some(OUT_URL), "html5", Map.empty, StatusString.Process,
+  //          Some(queue.now), Some(WORKER_ID), None)
   //      ),
   //      0, queue.now.minusHours(1), None)
   //
-  //    val res = Task("id-A_1", "id-A", Some("file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap"),
+  //    val res = Task(TASK_A, JOB_A, Some(IN_URL),
   //      Some("file:/Volumes/tmp/out/userguide.zip"), "html5", Map.empty, StatusString.Done,
-  //      Some(queue.now), Some("worker-id"), None)
+  //      Some(queue.now), Some(WORKER_ID), None)
   //    queue.submit(JobResult(res, List.empty))
   //
-  //    val job = queue.data("id-A")
+  //    val job = queue.data(JOB_A)
   //    job.output shouldBe "file:/Volumes/tmp/out/userguide.zip"
   //    job.transtype.head.status shouldBe StatusString.Done
   //    job.transtype.head.output shouldBe Some("file:/Volumes/tmp/out/userguide.zip")
@@ -275,24 +307,24 @@ class DBQueueSpec extends PlaySpec with GuiceOneAppPerTest with BeforeAndAfterEa
   //
   //
   //  "Job with one active task" should "accept job with update output" in {
-  //    queue.data += "id-A" -> Job("id-A",
-  //      "file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap",
-  //      "file:/Volumes/tmp/out/",
+  //    queue.data += JOB_A -> Job(JOB_A,
+  //      IN_URL,
+  //      OUT_URL,
   //      List(
-  //        Task("id-A_1", "id-A", Some("file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap"),
-  //          Some("file:/Volumes/tmp/out/"), "html5", Map.empty, StatusString.Process,
-  //          Some(queue.now), Some("worker-id"), None),
-  //        Task("id-A_2", "id-A", None, None, "upload", Map.empty, StatusString.Queue, None, None, None)
+  //        Task(TASK_A, JOB_A, Some(IN_URL),
+  //          Some(OUT_URL), "html5", Map.empty, StatusString.Process,
+  //          Some(queue.now), Some(WORKER_ID), None),
+  //        Task(TASK_B, JOB_A, None, None, "upload", Map.empty, StatusString.Queue, None, None, None)
   //      ),
   //      0, queue.now.minusHours(1), None)
   //
-  //    val res = Task("id-A_1", "id-A", Some("file:/Users/jelovirt/Work/github/dita-ot/src/main/docsrc/userguide.ditamap"),
+  //    val res = Task(TASK_A, JOB_A, Some(IN_URL),
   //      Some("file:/Volumes/tmp/out/userguide.zip"), "html5", Map.empty, StatusString.Process,
-  //      Some(queue.now), Some("worker-id"), None)
+  //      Some(queue.now), Some(WORKER_ID), None)
   //    queue.submit(JobResult(res, List.empty))
   //
-  //    val job = queue.data("id-A")
-  //    job.output shouldBe "file:/Volumes/tmp/out/"
+  //    val job = queue.data(JOB_A)
+  //    job.output shouldBe OUT_URL
   //    job.transtype.head.status shouldBe StatusString.Process
   //    job.transtype.head.output shouldBe Some("file:/Volumes/tmp/out/userguide.zip")
   //    job.finished.isDefined shouldBe false
