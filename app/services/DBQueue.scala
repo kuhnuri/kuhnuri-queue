@@ -147,7 +147,7 @@ class DBQueue @Inject()(db: Database,
         ORDER BY job.created;""";
       val res = sql
         .fetch(query)
-        .asInstanceOf[Result[Record7[String, String, String, Integer, OffsetDateTime, OffsetDateTime, String]]]
+        .asInstanceOf[Result[Mappers.JobRecord]]
         .map(Mappers.JobMapper)
         .asScala
       res
@@ -278,7 +278,7 @@ class DBQueue @Inject()(db: Database,
         .set(TASK.WORKER, worker.id)
         .where(TASK.ID.in(query))
       val res = update
-        .returning(TASK.UUID, TASK.ID, TASK.JOB, TASK.POSITION, TASK.STATUS, TASK.PROCESSING)
+        .returning(TASK.UUID, TASK.ID, TASK.JOB, TASK.POSITION, TASK.STATUS, TASK.PROCESSING, TASK.TRANSTYPE)
         .fetchOne()
 
       if (res == null) {
@@ -354,33 +354,35 @@ private object Mappers {
   type ReviewStatus = String
   type CommentError = String
 
-  object JobMapper extends RecordMapper[Record7[String, String, String, /*String, Status, */ Integer, OffsetDateTime, /* OffsetDateTime, String,*/ OffsetDateTime, String], Job] {
+  type JobRecord = Record7[
+    // UUId
+    String,
+    // Input
+    String,
+    // Output
+    String,
+    // Priority
+    Integer,
+    // Created
+    OffsetDateTime,
+    // Finished
+    OffsetDateTime,
+    // Status
+    String]
+
+  object JobMapper extends RecordMapper[JobRecord, Job] {
     @Override
-    def map(c: Record7[String, String, String, /*String, Status, */ Integer, OffsetDateTime, /*OffsetDateTime, String,*/ OffsetDateTime, String]): Job = {
+    def map(c: JobRecord): Job = {
       Job(
-        c.value1,
-        c.value2,
-        c.value3,
-        //          c.value4,
-        List.empty,
-        //          Map.empty,
-        //          StatusString.parse(c.value5),
-        c.value4.intValue(),
-        //          c.value7.toLocalDateTime,
-        c.value5.toLocalDateTime,
-        //          Option(c.value9),
-        Option(c.value6).map(_.toLocalDateTime),
-        StatusString(c.value7)
+        id = c.value1,
+        input = c.value2,
+        output = c.value3,
+        transtype = List.empty,
+        priority = c.value4.intValue(),
+        created = c.value5.toLocalDateTime,
+        finished = Option(c.value6).map(_.toLocalDateTime),
+        status = StatusString(c.value7)
       )
-
-      //        id: String,
-      //        input: String,
-      //        output: String,
-      //        transtype: Seq[Task],
-      //        priority: Int,
-      //        created: LocalDateTime,
-      //        finished: Option[LocalDateTime]
-
     }
   }
 

@@ -3,7 +3,7 @@ package services
 import java.net.URI
 import java.time.{Clock, Instant, LocalDateTime, ZoneOffset}
 
-import models.request.JobResult
+import models.request.{Create, Filter, JobResult}
 import models.{Job, StatusString, Task, Worker}
 import org.scalatest._
 import play.api.inject.bind
@@ -59,6 +59,8 @@ class SimpleQueueSpec extends FlatSpec with Matchers with BeforeAndAfter {
   before {
     queue.data.clear()
   }
+
+  // Dispatcher
 
   "Empty queue" should "return nothing" in {
     queue.request(List("unsupported"), worker) match {
@@ -276,6 +278,45 @@ class SimpleQueueSpec extends FlatSpec with Matchers with BeforeAndAfter {
     val job = queue.data(JOB_A)
     job.transtype(0).params shouldBe Map("a" -> "A", "b" -> "C", "d" -> "D")
   }
+
+  // Queue
+
+  "Queue" should "add new job" in {
+//    withDatabase { implicit connection =>
+//      val queue = app.injector.instanceOf[Queue]
+//      val create = Create(IN_URL, OUT_URL, List("html5", "upload"), None, Map.empty)
+//      queue.add(create)
+//
+//      val jobRes = map("SELECT count(ID) FROM job",
+//        res => 1,
+//        res => res.getLong(1))
+//      jobRes(1) shouldBe 5
+//
+//      val taskRes = map("SELECT count(ID) FROM task",
+//        res => 1,
+//        res => res.getLong(1))
+//      taskRes(1) shouldBe 10
+//    }
+  }
+
+  "Queue" should "list contents" in {
+//    withDatabase { implicit connection =>
+//      val queue = app.injector.instanceOf[Queue]
+//      val contents = queue.contents(Filter(None))
+//
+//      contents.size shouldBe 4
+//      contents(0).id shouldBe "a"
+//      contents(0).status shouldBe StatusString.Queue
+//      contents(1).id shouldBe "b"
+//      contents(1).status shouldBe StatusString.Process
+//      contents(2).id shouldBe "c"
+//      contents(2).status shouldBe StatusString.Process
+//      contents(3).id shouldBe "d"
+//      contents(3).status shouldBe StatusString.Error
+//    }
+  }
+
+  // Internal
 
   def createTask(statuses: StatusString*): Seq[Task] =
     statuses.map(Task(null, null, Some(null), null, null, null, _, null, null, null))

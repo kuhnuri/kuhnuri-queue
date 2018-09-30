@@ -1,4 +1,5 @@
 delete from job;
+delete from task;
 
 INSERT INTO job
 (id, uuid, created, input, output, finished, priority)
