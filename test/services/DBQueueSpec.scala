@@ -74,26 +74,22 @@ class DBQueueSpec extends FlatSpec with Matchers with BeforeAndAfter with Before
     } finally {
       withDatabase { connection =>
         //            connection.createStatement().execute(fixture)
-        connection.createStatement.execute(
-          """
-          DELETE FROM job; DELETE FROM task;
-          """)
       }
     }
   }
 
   override def afterEach(): Unit = {
-    //    try {
-    //      super.afterEach()
-    //    } finally {
-    //      withDatabase { connection =>
-    //        connection.createStatement.execute(
-    //          """
-    //          DELETE FROM job; DELETE FROM task;
-    //          """)
-    //      }
-    //
-    //    }
+        try {
+          super.afterEach()
+        } finally {
+          withDatabase { connection =>
+            connection.createStatement.execute(
+              """
+              DELETE FROM job; DELETE FROM task;
+              """)
+          }
+
+        }
   }
 
   // Dispatcher
@@ -205,138 +201,156 @@ class DBQueueSpec extends FlatSpec with Matchers with BeforeAndAfter with Before
   }
 
   "Job with one active task" should "not return second task" in {
-    val queue = app.injector.instanceOf[Dispatcher]
-    //    queue.data += JOB_A -> Job(JOB_A, IN_URL, OUT_URL,
-    //      List(
-    //        Task(TASK_A, JOB_A, Some(IN_URL), Some(OUT_URL), "html5", Map.empty,
-    //          StatusString.Process, Some(queue.now.minusMinutes(10)), Some(WORKER_ID), None),
-    //        Task(TASK_B, JOB_A, None, None, "upload", Map.empty, StatusString.Queue, None, None, None)
-    //      ),
-    //      0, queue.now.minusHours(1), None, StatusString.Process)
-    //
-    //    queue.request(List("upload"), worker) match {
-    //      case Some(_) => fail
-    //      case None =>
-    //    }
+    withDatabase { implicit connection =>
+      insertJob(Job(JOB_A, IN_URL, OUT_URL,
+        List(
+          Task(TASK_A, JOB_A, Some(IN_URL), Some(OUT_URL), "html5", Map.empty,
+            StatusString.Process, Some(now.minusMinutes(10)), Some(WORKER_ID), None),
+          Task(TASK_B, JOB_A, None, None, "upload", Map.empty, StatusString.Queue, None, None, None)
+        ),
+        0, now.minusHours(1), None, StatusString.Process)
+      )
+
+      val queue = app.injector.instanceOf[Dispatcher]
+      queue.request(List("upload"), worker) match {
+        case Some(_) => fail
+        case None =>
+      }
+    }
   }
 
-
   "Job with single active task" should "accept job with update output" in {
-    val queue = app.injector.instanceOf[Dispatcher]
-    //    queue.data += JOB_A -> Job(JOB_A, IN_URL, OUT_URL,
-    //      List(
-    //        Task(TASK_A, JOB_A, Some(IN_URL), Some(OUT_URL), "html5", Map.empty,
-    //          StatusString.Process, Some(queue.now), Some(WORKER_ID), None)
-    //      ),
-    //      0, queue.now.minusHours(1), None, StatusString.Process)
-    //
-    //    val res = Task(TASK_A, JOB_A, Some(IN_URL), Some("file:/dst/userguide.zip"), "html5",
-    //      Map.empty, StatusString.Done, Some(queue.now), Some(WORKER_ID), None)
-    //    queue.submit(JobResult(res, List.empty))
-    //
-    //    val job = queue.data(JOB_A)
-    //    job.output shouldBe "file:/dst/userguide.zip"
-    //    job.transtype.head.status shouldBe StatusString.Done
-    //    job.transtype.head.output shouldBe Some("file:/dst/userguide.zip")
-    //    job.finished shouldBe Some(now)
-    //    job.status shouldBe StatusString.Done
+    withDatabase { implicit connection =>
+      val queue = app.injector.instanceOf[Dispatcher]
+      insertJob(Job(JOB_A, IN_URL, OUT_URL,
+        List(
+          Task(TASK_A, JOB_A, Some(IN_URL), Some(OUT_URL), "html5", Map.empty,
+            StatusString.Process, Some(now), Some(WORKER_ID), None)
+        ),
+        0, now.minusHours(1), None, StatusString.Process)
+      )
+      val res = Task(TASK_A, JOB_A, Some(IN_URL), Some("file:/dst/userguide.zip"), "html5",
+        Map.empty, StatusString.Done, Some(now), Some(WORKER_ID), None)
+      queue.submit(JobResult(res, List.empty))
+
+      //          val job = queue.data(JOB_A)
+      //          job.output shouldBe "file:/dst/userguide.zip"
+      //          job.transtype.head.status shouldBe StatusString.Done
+      //          job.transtype.head.output shouldBe Some("file:/dst/userguide.zip")
+      //          job.finished shouldBe Some(now)
+      //          job.status shouldBe StatusString.Done
+    }
   }
 
   "Job with first active task" should "accept job with update output" in {
-    val queue = app.injector.instanceOf[Dispatcher]
-    //    queue.data += JOB_A -> Job(JOB_A, IN_URL, OUT_URL,
-    //      List(
-    //        Task(TASK_A, JOB_A, Some(IN_URL), None, "graphics", Map.empty, StatusString.Process,
-    //          Some(queue.now.minusMinutes(3)), Some(WORKER_ID), None),
-    //        Task(TASK_B, JOB_A, None, None, "html5", Map.empty, StatusString.Queue, None, None, None)
-    //      ),
-    //      0, queue.now.minusHours(1), None, StatusString.Process)
-    //
-    //    val res = Task(TASK_A, JOB_A, Some(IN_URL), Some("file:/tmp/userguide.zip"),
-    //      "html5", Map.empty, StatusString.Done, Some(queue.now.minusMinutes(1)), Some(WORKER_ID), Some(queue.now))
-    //    queue.submit(JobResult(res, List.empty))
-    //
-    //    val job = queue.data(JOB_A)
-    //    job.output shouldBe OUT_URL
-    //    job.transtype(0).status shouldBe StatusString.Done
-    //    job.transtype(0).input shouldBe Some(IN_URL)
-    //    job.transtype(0).output shouldBe Some("file:/tmp/userguide.zip")
-    //    job.transtype(1).status shouldBe StatusString.Queue
-    //    job.transtype(1).input shouldBe None
-    //    job.transtype(1).output shouldBe None
-    //    job.finished shouldBe None
-    //    job.status shouldBe StatusString.Process
+    withDatabase { implicit connection =>
+
+      insertJob(Job(JOB_A, IN_URL, OUT_URL,
+        List(
+          Task(TASK_A, JOB_A, Some(IN_URL), None, "graphics", Map.empty, StatusString.Process,
+            Some(now.minusMinutes(3)), Some(WORKER_ID), None),
+          Task(TASK_B, JOB_A, None, None, "html5", Map.empty, StatusString.Queue, None, None, None)
+        ),
+        0, now.minusHours(1), None, StatusString.Process)
+      )
+      val res = Task(TASK_A, JOB_A, Some(IN_URL), Some("file:/tmp/userguide.zip"),
+        "html5", Map.empty, StatusString.Done, Some(now.minusMinutes(1)), Some(WORKER_ID), Some(now))
+
+      val queue = app.injector.instanceOf[Dispatcher]
+      queue.submit(JobResult(res, List.empty))
+
+      //    val job = queue.data(JOB_A)
+      //    job.output shouldBe OUT_URL
+      //    job.transtype(0).status shouldBe StatusString.Done
+      //    job.transtype(0).input shouldBe Some(IN_URL)
+      //    job.transtype(0).output shouldBe Some("file:/tmp/userguide.zip")
+      //    job.transtype(1).status shouldBe StatusString.Queue
+      //    job.transtype(1).input shouldBe None
+      //    job.transtype(1).output shouldBe None
+      //    job.finished shouldBe None
+      //    job.status shouldBe StatusString.Process
+    }
   }
 
   "Job with second active task" should "accept job with update output" in {
-    val queue = app.injector.instanceOf[Dispatcher]
-    //    queue.data += JOB_A -> Job(JOB_A, IN_URL, OUT_URL,
-    //      List(
-    //        Task(TASK_A, JOB_A, Some(IN_URL), Some("file:/dst/userguide.zip"),
-    //          "graphics", Map.empty, StatusString.Done, Some(queue.now.minusMinutes(3)), Some(WORKER_ID),
-    //          Some(queue.now.minusMinutes(2))),
-    //        Task(TASK_B, JOB_A, Some("file:/dst/userguide.zip"), Some(OUT_URL), "html5", Map.empty,
-    //          StatusString.Process, Some(queue.now.minusMinutes(1)), Some(WORKER_ID), None)
-    //      ),
-    //      0, queue.now.minusHours(1), None, StatusString.Process)
-    //
-    //    val res = Task(TASK_B, JOB_A, Some("file:/dst/userguide.zip"), Some(OUT_URL),
-    //      "html5", Map.empty, StatusString.Done, Some(queue.now.minusMinutes(1)), Some(WORKER_ID), Some(queue.now))
-    //    queue.submit(JobResult(res, List.empty))
-    //
-    //    val job = queue.data(JOB_A)
-    //    job.output shouldBe OUT_URL
-    //    job.transtype(0).status shouldBe StatusString.Done
-    //    job.transtype(0).output shouldBe Some("file:/dst/userguide.zip")
-    //    job.transtype(1).status shouldBe StatusString.Done
-    //    job.transtype(1).input shouldBe Some("file:/dst/userguide.zip")
-    //    job.transtype(1).output shouldBe Some(OUT_URL)
-    //    job.finished shouldBe Some(queue.now)
-    //    job.status shouldBe StatusString.Done
+    withDatabase { implicit connection =>
+
+      insertJob(Job(JOB_A, IN_URL, OUT_URL,
+        List(
+          Task(TASK_A, JOB_A, Some(IN_URL), Some("file:/dst/userguide.zip"),
+            "graphics", Map.empty, StatusString.Done, Some(now.minusMinutes(3)), Some(WORKER_ID),
+            Some(now.minusMinutes(2))),
+          Task(TASK_B, JOB_A, Some("file:/dst/userguide.zip"), Some(OUT_URL), "html5", Map.empty,
+            StatusString.Process, Some(now.minusMinutes(1)), Some(WORKER_ID), None)
+        ),
+        0, now.minusHours(1), None, StatusString.Process)
+      )
+      val res = Task(TASK_B, JOB_A, Some("file:/dst/userguide.zip"), Some(OUT_URL),
+        "html5", Map.empty, StatusString.Done, Some(now.minusMinutes(1)), Some(WORKER_ID), Some(now))
+
+      val queue = app.injector.instanceOf[Dispatcher]
+      queue.submit(JobResult(res, List.empty))
+
+      //    val job = queue.data(JOB_A)
+      //    job.output shouldBe OUT_URL
+      //    job.transtype(0).status shouldBe StatusString.Done
+      //    job.transtype(0).output shouldBe Some("file:/dst/userguide.zip")
+      //    job.transtype(1).status shouldBe StatusString.Done
+      //    job.transtype(1).input shouldBe Some("file:/dst/userguide.zip")
+      //    job.transtype(1).output shouldBe Some(OUT_URL)
+      //    job.finished shouldBe Some(now)
+      //    job.status shouldBe StatusString.Done
+    }
   }
 
   "Job with last active task" should "accept job with update output" in {
-    val queue = app.injector.instanceOf[Dispatcher]
-    //    queue.data += JOB_A -> Job(JOB_A, IN_URL, OUT_URL,
-    //      List(
-    //        Task(TASK_A, JOB_A, Some(IN_URL), Some(OUT_URL), "html5", Map.empty,
-    //          StatusString.Process, Some(queue.now), Some(WORKER_ID), None),
-    //        Task(TASK_B, JOB_A, None, None, "upload", Map.empty, StatusString.Queue, None, None, None)
-    //      ),
-    //      0, queue.now.minusHours(1), None, StatusString.Process)
-    //
-    //    val res = Task(TASK_A, JOB_A, Some(IN_URL), Some("file:/dst/userguide.zip"),
-    //      "html5", Map.empty, StatusString.Process, Some(queue.now), Some(WORKER_ID), None)
-    //    queue.submit(JobResult(res, List.empty))
-    //
-    //    val job = queue.data(JOB_A)
-    //    job.output shouldBe OUT_URL
-    //    job.transtype(0).status shouldBe StatusString.Process
-    //    job.transtype(0).output shouldBe Some("file:/dst/userguide.zip")
-    //    job.transtype(1).status shouldBe StatusString.Queue
-    //    job.transtype(1).input shouldBe None
-    //    job.transtype(1).output shouldBe None
-    //    job.finished shouldBe None
-    //    job.status shouldBe StatusString.Process
+    withDatabase { implicit connection =>
+      insertJob(Job(JOB_A, IN_URL, OUT_URL,
+        List(
+          Task(TASK_A, JOB_A, Some(IN_URL), Some(OUT_URL), "html5", Map.empty,
+            StatusString.Process, Some(now), Some(WORKER_ID), None),
+          Task(TASK_B, JOB_A, None, None, "upload", Map.empty, StatusString.Queue, None, None, None)
+        ),
+        0, now.minusHours(1), None, StatusString.Process)
+      )
+      val res = Task(TASK_A, JOB_A, Some(IN_URL), Some("file:/dst/userguide.zip"),
+        "html5", Map.empty, StatusString.Process, Some(now), Some(WORKER_ID), None)
+
+      val queue = app.injector.instanceOf[Dispatcher]
+      queue.submit(JobResult(res, List.empty))
+
+      //    val job = queue.data(JOB_A)
+      //    job.output shouldBe OUT_URL
+      //    job.transtype(0).status shouldBe StatusString.Process
+      //    job.transtype(0).output shouldBe Some("file:/dst/userguide.zip")
+      //    job.transtype(1).status shouldBe StatusString.Queue
+      //    job.transtype(1).input shouldBe None
+      //    job.transtype(1).output shouldBe None
+      //    job.finished shouldBe None
+      //    job.status shouldBe StatusString.Process
+    }
   }
 
   "Submit with new task parameters" should "be added to work parameters" in {
-    val queue = app.injector.instanceOf[Dispatcher]
-    //    queue.data += JOB_A -> Job(JOB_A, IN_URL, OUT_URL,
-    //      List(
-    //        Task(TASK_A, JOB_A, Some(IN_URL), Some(OUT_URL), "html5",
-    //          Map("a" -> "A", "b" -> "B"),
-    //          StatusString.Process, Some(queue.now.minusHours(1)), Some(WORKER_ID), None)
-    //      ),
-    //      0, queue.now.minusHours(2), None, StatusString.Process)
-    //
-    //    val res = Task(TASK_A, JOB_A, Some(IN_URL), Some("file:/dst/userguide.zip"), "html5",
-    //      Map("b" -> "C", "d" -> "D"), StatusString.Done, Some(queue.now.minusHours(1)), Some(WORKER_ID),
-    //      Some(queue.now))
-    //    queue.submit(JobResult(res, List.empty))
-    //
-    //    val job = queue.data(JOB_A)
-    //    job.transtype(0).params shouldBe Map("a" -> "A", "b" -> "C", "d" -> "D")
+    withDatabase { implicit connection =>
+      insertJob(Job(JOB_A, IN_URL, OUT_URL,
+        List(
+          Task(TASK_A, JOB_A, Some(IN_URL), Some(OUT_URL), "html5",
+            Map("a" -> "A", "b" -> "B"),
+            StatusString.Process, Some(now.minusHours(1)), Some(WORKER_ID), None)
+        ),
+        0, now.minusHours(2), None, StatusString.Process)
+      )
+      val res = Task(TASK_A, JOB_A, Some(IN_URL), Some("file:/dst/userguide.zip"), "html5",
+        Map("b" -> "C", "d" -> "D"), StatusString.Done, Some(now.minusHours(1)), Some(WORKER_ID),
+        Some(now))
+
+      val queue = app.injector.instanceOf[Dispatcher]
+      queue.submit(JobResult(res, List.empty))
+      //
+      //    val job = queue.data(JOB_A)
+      //    job.transtype(0).params shouldBe Map("a" -> "A", "b" -> "C", "d" -> "D")
+    }
   }
 
 
@@ -460,12 +474,12 @@ class DBQueueSpec extends FlatSpec with Matchers with BeforeAndAfter with Before
   //    "return nothing for finished items" in withDatabase { implicit connection =>
   //      insert("""
   //        """)
-  //      queue.data += JOB_A -> Job(JOB_A, IN_URL, OUT_URL,
+  //      insertJob(Job(JOB_A, IN_URL, OUT_URL,
   //        List(
   //          Task(TASK_A, JOB_A, Some(IN_URL), Some(OUT_URL), "html5", Map.empty,
-  //            StatusString.Done, Some(queue.now.minusMinutes(10)), Some(WORKER_ID), Some(queue.now.minusMinutes(5)))
+  //            StatusString.Done, Some(now.minusMinutes(10)), Some(WORKER_ID), Some(now.minusMinutes(5)))
   //        ),
-  //        0, queue.now.minusHours(1), Some(queue.now.minusMinutes(5)), StatusString.Done)
+  //        0, now.minusHours(1), Some(now.minusMinutes(5)), StatusString.Done)
   //
   //      queue.request(List("html5"), worker) match {
   //        case Some(res) => fail
@@ -475,13 +489,13 @@ class DBQueueSpec extends FlatSpec with Matchers with BeforeAndAfter with Before
 
 
   //  "Job with single task" should "return first task" in {
-  //    queue.data += JOB_A -> Job(JOB_A,
+  //    insertJob(Job(JOB_A,
   //      IN_URL,
   //      OUT_URL,
   //      List(
   //        Task(TASK_A, JOB_A, None, None, "html5", Map.empty, StatusString.Queue, None, None, None)
   //      ),
-  //      0, queue.now.minusHours(1), None)
+  //      0, now.minusHours(1), None)
   //
   //    queue.request(List("html5"), worker) match {
   //      case Some(res) => {
@@ -496,16 +510,16 @@ class DBQueueSpec extends FlatSpec with Matchers with BeforeAndAfter with Before
   //  }
   //
   //  "Job with one successful task" should "return second task" in {
-  //    queue.data += JOB_A -> Job(JOB_A,
+  //    insertJob(Job(JOB_A,
   //      IN_URL,
   //      OUT_URL,
   //      List(
   //        Task(TASK_A, JOB_A, Some( IN_URL),
   //          Some("file:/Volumes/tmp/out/userguide.zip"), "html5", Map.empty, StatusString.Done,
-  //          Some(queue.now.minusMinutes(10)), Some(WORKER_ID), Some(queue.now.minusMinutes(1))),
+  //          Some(now.minusMinutes(10)), Some(WORKER_ID), Some(now.minusMinutes(1))),
   //        Task(TASK_B, JOB_A, None, None, "upload", Map.empty, StatusString.Queue, None, None, None)
   //      ),
-  //      0, queue.now.minusHours(1), None)
+  //      0, now.minusHours(1), None)
   //
   //    queue.request(List("upload"), worker) match {
   //      case Some(res) => {
@@ -520,19 +534,19 @@ class DBQueueSpec extends FlatSpec with Matchers with BeforeAndAfter with Before
   //  }
   //
   //  "Job with single active task" should "accept job with update output" in {
-  //    queue.data += JOB_A -> Job(JOB_A,
+  //    insertJob(Job(JOB_A,
   //      IN_URL,
   //      OUT_URL,
   //      List(
   //        Task(TASK_A, JOB_A, Some(IN_URL),
   //          Some(OUT_URL), "html5", Map.empty, StatusString.Process,
-  //          Some(queue.now), Some(WORKER_ID), None)
+  //          Some(now), Some(WORKER_ID), None)
   //      ),
-  //      0, queue.now.minusHours(1), None)
+  //      0, now.minusHours(1), None)
   //
   //    val res = Task(TASK_A, JOB_A, Some(IN_URL),
   //      Some("file:/Volumes/tmp/out/userguide.zip"), "html5", Map.empty, StatusString.Done,
-  //      Some(queue.now), Some(WORKER_ID), None)
+  //      Some(now), Some(WORKER_ID), None)
   //    queue.submit(JobResult(res, List.empty))
   //
   //    val job = queue.data(JOB_A)
@@ -544,20 +558,20 @@ class DBQueueSpec extends FlatSpec with Matchers with BeforeAndAfter with Before
   //
   //
   //  "Job with one active task" should "accept job with update output" in {
-  //    queue.data += JOB_A -> Job(JOB_A,
+  //    insertJob(Job(JOB_A,
   //      IN_URL,
   //      OUT_URL,
   //      List(
   //        Task(TASK_A, JOB_A, Some(IN_URL),
   //          Some(OUT_URL), "html5", Map.empty, StatusString.Process,
-  //          Some(queue.now), Some(WORKER_ID), None),
+  //          Some(now), Some(WORKER_ID), None),
   //        Task(TASK_B, JOB_A, None, None, "upload", Map.empty, StatusString.Queue, None, None, None)
   //      ),
-  //      0, queue.now.minusHours(1), None)
+  //      0, now.minusHours(1), None)
   //
   //    val res = Task(TASK_A, JOB_A, Some(IN_URL),
   //      Some("file:/Volumes/tmp/out/userguide.zip"), "html5", Map.empty, StatusString.Process,
-  //      Some(queue.now), Some(WORKER_ID), None)
+  //      Some(now), Some(WORKER_ID), None)
   //    queue.submit(JobResult(res, List.empty))
   //
   //    val job = queue.data(JOB_A)
@@ -567,9 +581,7 @@ class DBQueueSpec extends FlatSpec with Matchers with BeforeAndAfter with Before
   //    job.finished.isDefined shouldBe false
   //  }
 
-  private def withDatabase(block: (Connection) => Unit): Unit
-
-  = {
+  private def withDatabase(block: (Connection) => Unit): Unit = {
     val connection = database.getConnection()
     try {
       block(connection)
