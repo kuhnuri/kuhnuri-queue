@@ -284,16 +284,24 @@ class DBQueue @Inject()(db: Database,
       if (res == null) {
         return None
       }
-      val (input: String, output: String, jobId: String) = res.getPosition.intValue() match {
+
+      val lastPosition: Int = sql
+        .select(DSL.max(TASK.POSITION))
+        .from(TASK)
+        .where(TASK.JOB.eq(res.getJob))
+        .fetchOne()
+        .value1()
+
+      val (input: String, output: Option[String], jobId: String) = res.getPosition.intValue() match {
         case 1 => {
           val job = sql
             .select(JOB.OUTPUT, JOB.INPUT, JOB.UUID)
             .from(JOB)
             .where(JOB.ID.eq(res.getJob))
             .fetchOne()
-          (job.get(JOB.INPUT), job.get(JOB.OUTPUT), job.get(JOB.UUID))
+          (job.get(JOB.INPUT), if (lastPosition == 1) Some(job.get(JOB.OUTPUT)) else None, job.get(JOB.UUID))
         }
-        case _ => {
+        case position => {
           val prevTask = sql
             .select(TASK.OUTPUT, JOB.OUTPUT, JOB.UUID)
             .from(TASK)
@@ -301,14 +309,14 @@ class DBQueue @Inject()(db: Database,
             .where(TASK.JOB.eq(res.getJob)
               .and(TASK.POSITION.eq(res.getPosition - 1)))
             .fetchOne()
-          (prevTask.get(TASK.OUTPUT), prevTask.get(JOB.OUTPUT), prevTask.get(JOB.UUID))
+          (prevTask.get(TASK.OUTPUT), if (lastPosition == position) Some(prevTask.get(JOB.OUTPUT)) else None, prevTask.get(JOB.UUID))
         }
       }
 
       val resourceUpdate = sql
         .update(TASK)
         .set(TASK.INPUT, input)
-        .set(TASK.OUTPUT, output)
+        .set(TASK.OUTPUT, output.getOrElse(null))
         .execute()
 
       logger.debug(s"Request got back ${update}")
@@ -319,7 +327,7 @@ class DBQueue @Inject()(db: Database,
             res.getUuid,
             jobId,
             Some(input),
-            Some(output),
+            output,
             res.getTranstype,
             Map.empty,
             StatusString.parse(res.getStatus),

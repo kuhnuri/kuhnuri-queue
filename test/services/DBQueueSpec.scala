@@ -115,11 +115,11 @@ class DBQueueSpec extends FlatSpec with Matchers with BeforeAndAfter with Before
       insertJob(0, JOB_A, 0, IN_URL, OUT_URL, 0, 0)
       insertTask(0, TASK_A, 0, "html5", StatusString.Queue, 1)
 
-//      queue.data += JOB_A -> Job(JOB_A, IN_URL, OUT_URL,
-//        List(
-//          Task(TASK_A, JOB_A, None, None, "html5", Map.empty, StatusString.Queue, None, None, None)
-//        ),
-//        0, queue.now.minusHours(1), None, StatusString.Queue)
+      //      queue.data += JOB_A -> Job(JOB_A, IN_URL, OUT_URL,
+      //        List(
+      //          Task(TASK_A, JOB_A, None, None, "html5", Map.empty, StatusString.Queue, None, None, None)
+      //        ),
+      //        0, queue.now.minusHours(1), None, StatusString.Queue)
 
       val queue = app.injector.instanceOf[Dispatcher]
       queue.request(List("html5"), worker) match {
@@ -129,7 +129,7 @@ class DBQueueSpec extends FlatSpec with Matchers with BeforeAndAfter with Before
           res.input shouldBe Some(IN_URL)
           res.output shouldBe Some(OUT_URL)
           res.worker shouldBe Some(WORKER_ID)
-//          res.processing shouldBe Some(LocalDateTime.now(clock)))
+          //          res.processing shouldBe Some(LocalDateTime.now(clock)))
           res.status shouldBe StatusString.Process
         }
         case None => fail
@@ -138,26 +138,32 @@ class DBQueueSpec extends FlatSpec with Matchers with BeforeAndAfter with Before
   }
 
   "Job with two tasks" should "return first task" in {
-    val queue = app.injector.instanceOf[Dispatcher]
-    //    queue.data += JOB_A -> Job(JOB_A, IN_URL, OUT_URL,
-    //      List(
-    //        Task(TASK_A, JOB_A, None, None, "graphics", Map.empty, StatusString.Queue, None, None, None),
-    //        Task(TASK_B, JOB_A, None, None, "html5", Map.empty, StatusString.Queue, None, None, None)
-    //      ),
-    //      0, queue.now.minusHours(1), None, StatusString.Queue)
-    //
-    //    queue.request(List("graphics"), worker) match {
-    //      case Some(res) => {
-    //        res.transtype shouldBe "graphics"
-    //        res.id shouldBe TASK_A
-    //        res.input shouldBe Some(IN_URL)
-    //        res.output shouldBe None
-    //        res.worker shouldBe Some(WORKER_ID)
-    //        res.processing shouldBe Some(LocalDateTime.now(clock))
-    //        res.status shouldBe StatusString.Process
-    //      }
-    //      case None => fail
-    //    }
+    withDatabase { implicit connection =>
+      insertJob(0, JOB_A, 0, IN_URL, OUT_URL, 0, 0)
+      insertTask(0, TASK_A, 0, "graphics", StatusString.Queue, 1)
+      insertTask(1, TASK_B, 0, "html5", StatusString.Queue, 2)
+
+      //    queue.data += JOB_A -> Job(JOB_A, IN_URL, OUT_URL,
+      //      List(
+      //        Task(TASK_A, JOB_A, None, None, "graphics", Map.empty, StatusString.Queue, None, None, None),
+      //        Task(TASK_B, JOB_A, None, None, "html5", Map.empty, StatusString.Queue, None, None, None)
+      //      ),
+      //      0, queue.now.minusHours(1), None, StatusString.Queue)
+      //
+      val queue = app.injector.instanceOf[Dispatcher]
+      queue.request(List("graphics"), worker) match {
+        case Some(res) => {
+          res.transtype shouldBe "graphics"
+          res.id shouldBe TASK_A
+          res.input shouldBe Some(IN_URL)
+          res.output shouldBe None
+          res.worker shouldBe Some(WORKER_ID)
+//          res.processing shouldBe Some(LocalDateTime.now(clock))
+          res.status shouldBe StatusString.Process
+        }
+        case None => fail
+      }
+    }
   }
 
   "Job with one successful task" should "return second task" in {
