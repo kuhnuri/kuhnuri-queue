@@ -2,10 +2,15 @@ package services
 
 import java.net.URI
 import java.sql.{Connection, ResultSet}
-import java.time.{Clock, Instant, LocalDateTime, ZoneOffset}
+import java.time._
+import java.util.concurrent.atomic.AtomicInteger
 
+import generated.Tables._
+import generated.enums.Status
 import models.request.{Create, Filter, JobResult}
-import models.{StatusString, Worker}
+import models.{Job, StatusString, Task, Worker}
+import org.jooq.impl.DSL
+import org.jooq.{Query, SQLDialect}
 import org.scalatest._
 import play.api.db.{Database, Databases}
 import play.api.inject.bind
@@ -25,7 +30,7 @@ class DBQueueSpec extends FlatSpec with Matchers with BeforeAndAfter with Before
   private val WORKER_ID = "worker-id"
 
   private val clock: Clock = Clock.fixed(Instant.now(), ZoneOffset.UTC.normalized())
-  private val now = LocalDateTime.now(clock).atOffset(ZoneOffset.UTC)
+  private val now = LocalDateTime.now(clock) //.atOffset(ZoneOffset.UTC)
 
   //  val database = Databases.inMemory(
   //    name = "queue",
@@ -64,27 +69,31 @@ class DBQueueSpec extends FlatSpec with Matchers with BeforeAndAfter with Before
   val fixture = Source.fromInputStream(getClass.getResourceAsStream("/services/fixture.sql")).mkString
 
   override def beforeEach(): Unit = {
-    //    try {
-    //      super.beforeEach()
-    //    } finally {
-    //      withDatabase { connection =>
-    //        connection.createStatement().execute(fixture)
-    //      }
-    //    }
+    try {
+      super.beforeEach()
+    } finally {
+      withDatabase { connection =>
+        //            connection.createStatement().execute(fixture)
+        connection.createStatement.execute(
+          """
+          DELETE FROM job; DELETE FROM task;
+          """)
+      }
+    }
   }
 
   override def afterEach(): Unit = {
-    try {
-      super.afterEach()
-    } finally {
-      withDatabase { connection =>
-        connection.createStatement.execute(
-          """
-          DELETE FROM job;
-          """)
-      }
-
-    }
+    //    try {
+    //      super.afterEach()
+    //    } finally {
+    //      withDatabase { connection =>
+    //        connection.createStatement.execute(
+    //          """
+    //          DELETE FROM job; DELETE FROM task;
+    //          """)
+    //      }
+    //
+    //    }
   }
 
   // Dispatcher
@@ -99,8 +108,13 @@ class DBQueueSpec extends FlatSpec with Matchers with BeforeAndAfter with Before
 
   "Queue with finished items" should "return nothing" in {
     withDatabase { implicit connection =>
-      insertJob(0, JOB_A, 0, IN_URL, OUT_URL, 0, 0)
-      insertTask(0, TASK_A, 0, "html5", StatusString.Done, 1)
+      insertJob(Job(JOB_A, IN_URL, OUT_URL,
+        List(
+          Task(TASK_A, JOB_A, Some(IN_URL), Some(OUT_URL), "html5", Map.empty,
+            StatusString.Done, Some(now.minusMinutes(10)), Some(WORKER_ID), Some(now.minusMinutes(5)))
+        ),
+        0, now.minusHours(1), Some(now.minusMinutes(5)), StatusString.Done)
+      )
 
       val queue = app.injector.instanceOf[Dispatcher]
       queue.request(List("html5"), worker) match {
@@ -112,14 +126,13 @@ class DBQueueSpec extends FlatSpec with Matchers with BeforeAndAfter with Before
 
   "Job with single task" should "return first task" in {
     withDatabase { implicit connection =>
-      insertJob(0, JOB_A, 0, IN_URL, OUT_URL, 0, 0)
-      insertTask(0, TASK_A, 0, "html5", StatusString.Queue, 1)
-
-      //      queue.data += JOB_A -> Job(JOB_A, IN_URL, OUT_URL,
-      //        List(
-      //          Task(TASK_A, JOB_A, None, None, "html5", Map.empty, StatusString.Queue, None, None, None)
-      //        ),
-      //        0, queue.now.minusHours(1), None, StatusString.Queue)
+      insertJob(
+        Job(JOB_A, IN_URL, OUT_URL,
+          List(
+            Task(TASK_A, JOB_A, None, None, "html5", Map.empty, StatusString.Queue, None, None, None)
+          ),
+          0, now.minusHours(1), None, StatusString.Queue)
+      )
 
       val queue = app.injector.instanceOf[Dispatcher]
       queue.request(List("html5"), worker) match {
@@ -129,7 +142,7 @@ class DBQueueSpec extends FlatSpec with Matchers with BeforeAndAfter with Before
           res.input shouldBe Some(IN_URL)
           res.output shouldBe Some(OUT_URL)
           res.worker shouldBe Some(WORKER_ID)
-          //          res.processing shouldBe Some(LocalDateTime.now(clock)))
+          //          res.processing shouldBe Some(now))
           res.status shouldBe StatusString.Process
         }
         case None => fail
@@ -139,17 +152,14 @@ class DBQueueSpec extends FlatSpec with Matchers with BeforeAndAfter with Before
 
   "Job with two tasks" should "return first task" in {
     withDatabase { implicit connection =>
-      insertJob(0, JOB_A, 0, IN_URL, OUT_URL, 0, 0)
-      insertTask(0, TASK_A, 0, "graphics", StatusString.Queue, 1)
-      insertTask(1, TASK_B, 0, "html5", StatusString.Queue, 2)
+      insertJob(Job(JOB_A, IN_URL, OUT_URL,
+        List(
+          Task(TASK_A, JOB_A, None, None, "graphics", Map.empty, StatusString.Queue, None, None, None),
+          Task(TASK_B, JOB_A, None, None, "html5", Map.empty, StatusString.Queue, None, None, None)
+        ),
+        0, now.minusHours(1), None, StatusString.Queue)
+      )
 
-      //    queue.data += JOB_A -> Job(JOB_A, IN_URL, OUT_URL,
-      //      List(
-      //        Task(TASK_A, JOB_A, None, None, "graphics", Map.empty, StatusString.Queue, None, None, None),
-      //        Task(TASK_B, JOB_A, None, None, "html5", Map.empty, StatusString.Queue, None, None, None)
-      //      ),
-      //      0, queue.now.minusHours(1), None, StatusString.Queue)
-      //
       val queue = app.injector.instanceOf[Dispatcher]
       queue.request(List("graphics"), worker) match {
         case Some(res) => {
@@ -158,7 +168,7 @@ class DBQueueSpec extends FlatSpec with Matchers with BeforeAndAfter with Before
           res.input shouldBe Some(IN_URL)
           res.output shouldBe None
           res.worker shouldBe Some(WORKER_ID)
-//          res.processing shouldBe Some(LocalDateTime.now(clock))
+          //          res.processing shouldBe Some(now)
           res.status shouldBe StatusString.Process
         }
         case None => fail
@@ -167,28 +177,31 @@ class DBQueueSpec extends FlatSpec with Matchers with BeforeAndAfter with Before
   }
 
   "Job with one successful task" should "return second task" in {
-    val queue = app.injector.instanceOf[Dispatcher]
-    //    queue.data += JOB_A -> Job(JOB_A, IN_URL, OUT_URL,
-    //      List(
-    //        Task(TASK_A, JOB_A, Some(IN_URL), Some("file:/dst/userguide.zip"),
-    //          "html5", Map.empty, StatusString.Done, Some(queue.now.minusMinutes(10)), Some(WORKER_ID),
-    //          Some(queue.now.minusMinutes(1))),
-    //        Task(TASK_B, JOB_A, None, None, "upload", Map.empty, StatusString.Queue, None, None, None)
-    //      ),
-    //      0, queue.now.minusHours(1), None, StatusString.Process)
-    //
-    //    queue.request(List("html5", "upload"), worker) match {
-    //      case Some(res) => {
-    //        res.transtype shouldBe "upload"
-    //        res.id shouldBe TASK_B
-    //        res.input shouldBe Some("file:/dst/userguide.zip")
-    //        res.output shouldBe Some(OUT_URL)
-    //        res.worker shouldBe Some(WORKER_ID)
-    //        res.processing shouldBe Some(LocalDateTime.now(clock))
-    //        res.status shouldBe StatusString.Process
-    //      }
-    //      case None => fail
-    //    }
+    withDatabase { implicit connection =>
+      insertJob(Job(JOB_A, IN_URL, OUT_URL,
+        List(
+          Task(TASK_A, JOB_A, Some(IN_URL), Some("file:/dst/userguide.zip"),
+            "html5", Map.empty, StatusString.Done, Some(now.minusMinutes(10)),
+            Some(WORKER_ID), Some(now.minusMinutes(1))),
+          Task(TASK_B, JOB_A, None, None, "upload", Map.empty, StatusString.Queue, None, None, None)
+        ),
+        0, now.minusHours(1), None, StatusString.Process)
+      )
+
+      val queue = app.injector.instanceOf[Dispatcher]
+      queue.request(List("html5", "upload"), worker) match {
+        case Some(res) => {
+          res.transtype shouldBe "upload"
+          res.id shouldBe TASK_B
+          res.input shouldBe Some("file:/dst/userguide.zip")
+          res.output shouldBe Some(OUT_URL)
+          res.worker shouldBe Some(WORKER_ID)
+          //          res.processing shouldBe Some(now)
+          res.status shouldBe StatusString.Process
+        }
+        case None => fail
+      }
+    }
   }
 
   "Job with one active task" should "not return second task" in {
@@ -225,7 +238,7 @@ class DBQueueSpec extends FlatSpec with Matchers with BeforeAndAfter with Before
     //    job.output shouldBe "file:/dst/userguide.zip"
     //    job.transtype.head.status shouldBe StatusString.Done
     //    job.transtype.head.output shouldBe Some("file:/dst/userguide.zip")
-    //    job.finished shouldBe Some(LocalDateTime.now(clock))
+    //    job.finished shouldBe Some(now)
     //    job.status shouldBe StatusString.Done
   }
 
@@ -585,33 +598,41 @@ class DBQueueSpec extends FlatSpec with Matchers with BeforeAndAfter with Before
     buf.toMap
   }
 
-  private def insertJob(id: Integer, uuid: String, created: Integer, input: String, output: String, finished: Integer, priority: Integer)
-                       (implicit connection: Connection): Unit = {
-    val query =
-      s"""
-         |INSERT INTO job
-         |(id, uuid, created, input, output, finished, priority)
-         |VALUES
-         |  ($id, '$uuid', ${if (created != 0) s"now() - INTERVAL '$created day'" else "now()"}, '$input', '$output', ${if (finished != 0) s"now() - INTERVAL '$finished day'" else "NULL"}, $priority)
-         |;
-      """.stripMargin
-    connection.prepareStatement(query).execute()
+  private def insertJob(job: Job)(implicit connection: Connection): Unit = {
+    val jobId: AtomicInteger = new AtomicInteger(0)
+    val taskId: AtomicInteger = new AtomicInteger(0)
+    val sql = DSL.using(connection, SQLDialect.POSTGRES_9_4)
+    val tasks: Seq[(Task, Int)] = job.transtype.zipWithIndex
+    val value: List[Query] = List(
+      sql
+        .insertInto(JOB, JOB.ID, JOB.UUID, JOB.CREATED, JOB.INPUT, JOB.OUTPUT, JOB.FINISHED, JOB.PRIORITY)
+        .values(jobId.incrementAndGet(), job.id,
+          if (job.created != null) job.created else now,
+          job.input, job.output,
+          job.finished.map(localDateTimeToOffsetDateTime).getOrElse(null),
+          job.priority)
+    ) ++ tasks.map { case (task: Task, i: Int) =>
+      sql
+        .insertInto(TASK, TASK.ID, TASK.UUID, TASK.JOB, TASK.TRANSTYPE, TASK.INPUT, TASK.OUTPUT, TASK.STATUS,
+          TASK.PROCESSING, TASK.FINISHED, TASK.WORKER, TASK.POSITION)
+        .values(
+          taskId.incrementAndGet(), task.id, jobId.get(), task.transtype, task.input.orNull, task.output.orNull,
+          Status.valueOf(task.status.toString), task.processing.map(localDateTimeToOffsetDateTime).orNull,
+          task.finished.map(localDateTimeToOffsetDateTime).orNull,
+          task.worker.orNull, i + 1
+        )
+    }
+    System.err.println(value)
+    val ints: Array[Int] = sql
+      .batch(
+        value: _*)
+      .execute()
+    System.err.println(ints.toList)
     ()
   }
 
-  private def insertTask(id: Integer, uuid: String, job: Integer, transtype: String, status: StatusString, position: Integer)
-                        (implicit connection: Connection): Unit = {
-    val query =
-      s"""
-         |INSERT INTO task
-         |(id, uuid, job, transtype, input, output, status, processing, finished, worker, position)
-         |VALUES
-         |  ($id, '$uuid', $job, '$transtype', NULL, NULL, '${status.toString}', NULL, NULL, NULL, $position)
-         |;
-      """.stripMargin
-    connection.prepareStatement(query).execute()
-    ()
-  }
+  private implicit def localDateTimeToOffsetDateTime(localDateTime: LocalDateTime): OffsetDateTime =
+    OffsetDateTime.of(localDateTime, ZoneOffset.UTC)
 
 }
 

@@ -3,7 +3,7 @@ package services
 import java.net.URI
 import java.time.{Clock, Instant, LocalDateTime, ZoneOffset}
 
-import models.request.{Create, Filter, JobResult}
+import models.request.JobResult
 import models.{Job, StatusString, Task, Worker}
 import org.scalatest._
 import play.api.inject.bind
@@ -19,7 +19,7 @@ class SimpleQueueSpec extends FlatSpec with Matchers with BeforeAndAfter {
   private val WORKER_ID = "worker-id"
 
   private val clock: Clock = Clock.fixed(Instant.now(), ZoneOffset.UTC.normalized())
-  private val now = LocalDateTime.now(clock).atOffset(ZoneOffset.UTC)
+  private val now = LocalDateTime.now(clock)//.atOffset(ZoneOffset.UTC)
 
   private val app = new GuiceApplicationBuilder()
     .configure(Map(
@@ -70,12 +70,13 @@ class SimpleQueueSpec extends FlatSpec with Matchers with BeforeAndAfter {
   }
 
   "Queue with finished items" should "return nothing" in {
-    queue.data += JOB_A -> Job(JOB_A, IN_URL, OUT_URL,
+    insertJob(Job(JOB_A, IN_URL, OUT_URL,
       List(
         Task(TASK_A, JOB_A, Some(IN_URL), Some(OUT_URL), "html5", Map.empty,
-          StatusString.Done, Some(queue.now.minusMinutes(10)), Some(WORKER_ID), Some(queue.now.minusMinutes(5)))
+          StatusString.Done, Some(now.minusMinutes(10)), Some(WORKER_ID), Some(now.minusMinutes(5)))
       ),
-      0, queue.now.minusHours(1), Some(queue.now.minusMinutes(5)), StatusString.Done)
+      0, now.minusHours(1), Some(now.minusMinutes(5)), StatusString.Done)
+    )
 
     queue.request(List("html5"), worker) match {
       case Some(res) => fail
@@ -84,11 +85,12 @@ class SimpleQueueSpec extends FlatSpec with Matchers with BeforeAndAfter {
   }
 
   "Job with single task" should "return first task" in {
-    queue.data += JOB_A -> Job(JOB_A, IN_URL, OUT_URL,
+    insertJob(Job(JOB_A, IN_URL, OUT_URL,
       List(
         Task(TASK_A, JOB_A, None, None, "html5", Map.empty, StatusString.Queue, None, None, None)
       ),
-      0, queue.now.minusHours(1), None, StatusString.Queue)
+      0, now.minusHours(1), None, StatusString.Queue)
+    )
 
     queue.request(List("html5"), worker) match {
       case Some(res) => {
@@ -105,12 +107,13 @@ class SimpleQueueSpec extends FlatSpec with Matchers with BeforeAndAfter {
   }
 
   "Job with two tasks" should "return first task" in {
-    queue.data += JOB_A -> Job(JOB_A, IN_URL, OUT_URL,
+    insertJob(Job(JOB_A, IN_URL, OUT_URL,
       List(
         Task(TASK_A, JOB_A, None, None, "graphics", Map.empty, StatusString.Queue, None, None, None),
         Task(TASK_B, JOB_A, None, None, "html5", Map.empty, StatusString.Queue, None, None, None)
       ),
-      0, queue.now.minusHours(1), None, StatusString.Queue)
+      0, now.minusHours(1), None, StatusString.Queue)
+    )
 
     queue.request(List("graphics"), worker) match {
       case Some(res) => {
@@ -127,14 +130,15 @@ class SimpleQueueSpec extends FlatSpec with Matchers with BeforeAndAfter {
   }
 
   "Job with one successful task" should "return second task" in {
-    queue.data += JOB_A -> Job(JOB_A, IN_URL, OUT_URL,
+    insertJob(Job(JOB_A, IN_URL, OUT_URL,
       List(
         Task(TASK_A, JOB_A, Some(IN_URL), Some("file:/dst/userguide.zip"),
-          "html5", Map.empty, StatusString.Done, Some(queue.now.minusMinutes(10)), Some(WORKER_ID),
-          Some(queue.now.minusMinutes(1))),
+          "html5", Map.empty, StatusString.Done, Some(now.minusMinutes(10)), Some(WORKER_ID),
+          Some(now.minusMinutes(1))),
         Task(TASK_B, JOB_A, None, None, "upload", Map.empty, StatusString.Queue, None, None, None)
       ),
-      0, queue.now.minusHours(1), None, StatusString.Process)
+      0, now.minusHours(1), None, StatusString.Process)
+    )
 
     queue.request(List("html5", "upload"), worker) match {
       case Some(res) => {
@@ -151,13 +155,14 @@ class SimpleQueueSpec extends FlatSpec with Matchers with BeforeAndAfter {
   }
 
   "Job with one active task" should "not return second task" in {
-    queue.data += JOB_A -> Job(JOB_A, IN_URL, OUT_URL,
+    insertJob(Job(JOB_A, IN_URL, OUT_URL,
       List(
         Task(TASK_A, JOB_A, Some(IN_URL), Some(OUT_URL), "html5", Map.empty,
-          StatusString.Process, Some(queue.now.minusMinutes(10)), Some(WORKER_ID), None),
+          StatusString.Process, Some(now.minusMinutes(10)), Some(WORKER_ID), None),
         Task(TASK_B, JOB_A, None, None, "upload", Map.empty, StatusString.Queue, None, None, None)
       ),
-      0, queue.now.minusHours(1), None, StatusString.Process)
+      0, now.minusHours(1), None, StatusString.Process)
+    )
 
     queue.request(List("upload"), worker) match {
       case Some(_) => fail
@@ -165,17 +170,17 @@ class SimpleQueueSpec extends FlatSpec with Matchers with BeforeAndAfter {
     }
   }
 
-
   "Job with single active task" should "accept job with update output" in {
-    queue.data += JOB_A -> Job(JOB_A, IN_URL, OUT_URL,
+    insertJob(Job(JOB_A, IN_URL, OUT_URL,
       List(
         Task(TASK_A, JOB_A, Some(IN_URL), Some(OUT_URL), "html5", Map.empty,
-          StatusString.Process, Some(queue.now), Some(WORKER_ID), None)
+          StatusString.Process, Some(now), Some(WORKER_ID), None)
       ),
-      0, queue.now.minusHours(1), None, StatusString.Process)
+      0, now.minusHours(1), None, StatusString.Process)
+    )
 
     val res = Task(TASK_A, JOB_A, Some(IN_URL), Some("file:/dst/userguide.zip"), "html5",
-      Map.empty, StatusString.Done, Some(queue.now), Some(WORKER_ID), None)
+      Map.empty, StatusString.Done, Some(now), Some(WORKER_ID), None)
     queue.submit(JobResult(res, List.empty))
 
     val job = queue.data(JOB_A)
@@ -187,16 +192,17 @@ class SimpleQueueSpec extends FlatSpec with Matchers with BeforeAndAfter {
   }
 
   "Job with first active task" should "accept job with update output" in {
-    queue.data += JOB_A -> Job(JOB_A, IN_URL, OUT_URL,
+    insertJob(Job(JOB_A, IN_URL, OUT_URL,
       List(
         Task(TASK_A, JOB_A, Some(IN_URL), None, "graphics", Map.empty, StatusString.Process,
-          Some(queue.now.minusMinutes(3)), Some(WORKER_ID), None),
+          Some(now.minusMinutes(3)), Some(WORKER_ID), None),
         Task(TASK_B, JOB_A, None, None, "html5", Map.empty, StatusString.Queue, None, None, None)
       ),
-      0, queue.now.minusHours(1), None, StatusString.Process)
+      0, now.minusHours(1), None, StatusString.Process)
+    )
 
     val res = Task(TASK_A, JOB_A, Some(IN_URL), Some("file:/tmp/userguide.zip"),
-      "html5", Map.empty, StatusString.Done, Some(queue.now.minusMinutes(1)), Some(WORKER_ID), Some(queue.now))
+      "html5", Map.empty, StatusString.Done, Some(now.minusMinutes(1)), Some(WORKER_ID), Some(now))
     queue.submit(JobResult(res, List.empty))
 
     val job = queue.data(JOB_A)
@@ -212,18 +218,19 @@ class SimpleQueueSpec extends FlatSpec with Matchers with BeforeAndAfter {
   }
 
   "Job with second active task" should "accept job with update output" in {
-    queue.data += JOB_A -> Job(JOB_A, IN_URL, OUT_URL,
+    insertJob(Job(JOB_A, IN_URL, OUT_URL,
       List(
         Task(TASK_A, JOB_A, Some(IN_URL), Some("file:/dst/userguide.zip"),
-          "graphics", Map.empty, StatusString.Done, Some(queue.now.minusMinutes(3)), Some(WORKER_ID),
-          Some(queue.now.minusMinutes(2))),
+          "graphics", Map.empty, StatusString.Done, Some(now.minusMinutes(3)), Some(WORKER_ID),
+          Some(now.minusMinutes(2))),
         Task(TASK_B, JOB_A, Some("file:/dst/userguide.zip"), Some(OUT_URL), "html5", Map.empty,
-          StatusString.Process, Some(queue.now.minusMinutes(1)), Some(WORKER_ID), None)
+          StatusString.Process, Some(now.minusMinutes(1)), Some(WORKER_ID), None)
       ),
-      0, queue.now.minusHours(1), None, StatusString.Process)
+      0, now.minusHours(1), None, StatusString.Process)
+    )
 
     val res = Task(TASK_B, JOB_A, Some("file:/dst/userguide.zip"), Some(OUT_URL),
-      "html5", Map.empty, StatusString.Done, Some(queue.now.minusMinutes(1)), Some(WORKER_ID), Some(queue.now))
+      "html5", Map.empty, StatusString.Done, Some(now.minusMinutes(1)), Some(WORKER_ID), Some(now))
     queue.submit(JobResult(res, List.empty))
 
     val job = queue.data(JOB_A)
@@ -233,21 +240,22 @@ class SimpleQueueSpec extends FlatSpec with Matchers with BeforeAndAfter {
     job.transtype(1).status shouldBe StatusString.Done
     job.transtype(1).input shouldBe Some("file:/dst/userguide.zip")
     job.transtype(1).output shouldBe Some(OUT_URL)
-    job.finished shouldBe Some(queue.now)
+    job.finished shouldBe Some(now)
     job.status shouldBe StatusString.Done
   }
 
   "Job with last active task" should "accept job with update output" in {
-    queue.data += JOB_A -> Job(JOB_A, IN_URL, OUT_URL,
+    insertJob(Job(JOB_A, IN_URL, OUT_URL,
       List(
         Task(TASK_A, JOB_A, Some(IN_URL), Some(OUT_URL), "html5", Map.empty,
-          StatusString.Process, Some(queue.now), Some(WORKER_ID), None),
+          StatusString.Process, Some(now), Some(WORKER_ID), None),
         Task(TASK_B, JOB_A, None, None, "upload", Map.empty, StatusString.Queue, None, None, None)
       ),
-      0, queue.now.minusHours(1), None, StatusString.Process)
+      0, now.minusHours(1), None, StatusString.Process)
+    )
 
     val res = Task(TASK_A, JOB_A, Some(IN_URL), Some("file:/dst/userguide.zip"),
-      "html5", Map.empty, StatusString.Process, Some(queue.now), Some(WORKER_ID), None)
+      "html5", Map.empty, StatusString.Process, Some(now), Some(WORKER_ID), None)
     queue.submit(JobResult(res, List.empty))
 
     val job = queue.data(JOB_A)
@@ -262,17 +270,18 @@ class SimpleQueueSpec extends FlatSpec with Matchers with BeforeAndAfter {
   }
 
   "Submit with new task parameters" should "be added to work parameters" in {
-    queue.data += JOB_A -> Job(JOB_A, IN_URL, OUT_URL,
+    insertJob(Job(JOB_A, IN_URL, OUT_URL,
       List(
         Task(TASK_A, JOB_A, Some(IN_URL), Some(OUT_URL), "html5",
           Map("a" -> "A", "b" -> "B"),
-          StatusString.Process, Some(queue.now.minusHours(1)), Some(WORKER_ID), None)
+          StatusString.Process, Some(now.minusHours(1)), Some(WORKER_ID), None)
       ),
-      0, queue.now.minusHours(2), None, StatusString.Process)
+      0, now.minusHours(2), None, StatusString.Process)
+    )
 
     val res = Task(TASK_A, JOB_A, Some(IN_URL), Some("file:/dst/userguide.zip"), "html5",
-      Map("b" -> "C", "d" -> "D"), StatusString.Done, Some(queue.now.minusHours(1)), Some(WORKER_ID),
-      Some(queue.now))
+      Map("b" -> "C", "d" -> "D"), StatusString.Done, Some(now.minusHours(1)), Some(WORKER_ID),
+      Some(now))
     queue.submit(JobResult(res, List.empty))
 
     val job = queue.data(JOB_A)
@@ -282,38 +291,38 @@ class SimpleQueueSpec extends FlatSpec with Matchers with BeforeAndAfter {
   // Queue
 
   "Queue" should "add new job" in {
-//    withDatabase { implicit connection =>
-//      val queue = app.injector.instanceOf[Queue]
-//      val create = Create(IN_URL, OUT_URL, List("html5", "upload"), None, Map.empty)
-//      queue.add(create)
-//
-//      val jobRes = map("SELECT count(ID) FROM job",
-//        res => 1,
-//        res => res.getLong(1))
-//      jobRes(1) shouldBe 5
-//
-//      val taskRes = map("SELECT count(ID) FROM task",
-//        res => 1,
-//        res => res.getLong(1))
-//      taskRes(1) shouldBe 10
-//    }
+    //    withDatabase { implicit connection =>
+    //      val queue = app.injector.instanceOf[Queue]
+    //      val create = Create(IN_URL, OUT_URL, List("html5", "upload"), None, Map.empty)
+    //      queue.add(create)
+    //
+    //      val jobRes = map("SELECT count(ID) FROM job",
+    //        res => 1,
+    //        res => res.getLong(1))
+    //      jobRes(1) shouldBe 5
+    //
+    //      val taskRes = map("SELECT count(ID) FROM task",
+    //        res => 1,
+    //        res => res.getLong(1))
+    //      taskRes(1) shouldBe 10
+    //    }
   }
 
   "Queue" should "list contents" in {
-//    withDatabase { implicit connection =>
-//      val queue = app.injector.instanceOf[Queue]
-//      val contents = queue.contents(Filter(None))
-//
-//      contents.size shouldBe 4
-//      contents(0).id shouldBe "a"
-//      contents(0).status shouldBe StatusString.Queue
-//      contents(1).id shouldBe "b"
-//      contents(1).status shouldBe StatusString.Process
-//      contents(2).id shouldBe "c"
-//      contents(2).status shouldBe StatusString.Process
-//      contents(3).id shouldBe "d"
-//      contents(3).status shouldBe StatusString.Error
-//    }
+    //    withDatabase { implicit connection =>
+    //      val queue = app.injector.instanceOf[Queue]
+    //      val contents = queue.contents(Filter(None))
+    //
+    //      contents.size shouldBe 4
+    //      contents(0).id shouldBe "a"
+    //      contents(0).status shouldBe StatusString.Queue
+    //      contents(1).id shouldBe "b"
+    //      contents(1).status shouldBe StatusString.Process
+    //      contents(2).id shouldBe "c"
+    //      contents(2).status shouldBe StatusString.Process
+    //      contents(3).id shouldBe "d"
+    //      contents(3).status shouldBe StatusString.Error
+    //    }
   }
 
   // Internal
@@ -359,6 +368,10 @@ class SimpleQueueSpec extends FlatSpec with Matchers with BeforeAndAfter {
 
   it should "subsitute alias as only entry" in {
     queue.getParams(List("duo")) shouldBe Map("foo" -> "bar")
+  }
+
+  private def insertJob(job: Job): Unit = {
+    queue.data += job.id -> job
   }
 }
 
