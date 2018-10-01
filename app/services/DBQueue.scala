@@ -299,7 +299,11 @@ class DBQueue @Inject()(db: Database,
             .from(JOB)
             .where(JOB.ID.eq(res.getJob))
             .fetchOne()
-          (job.get(JOB.INPUT), if (lastPosition == 1) Some(job.get(JOB.OUTPUT)) else None, job.get(JOB.UUID))
+          (
+            job.get(JOB.INPUT),
+            if (lastPosition == 1) Some(job.get(JOB.OUTPUT)) else None,
+            job.get(JOB.UUID)
+          )
         }
         case position => {
           val prevTask = sql
@@ -309,7 +313,11 @@ class DBQueue @Inject()(db: Database,
             .where(TASK.JOB.eq(res.getJob)
               .and(TASK.POSITION.eq(res.getPosition - 1)))
             .fetchOne()
-          (prevTask.get(TASK.OUTPUT), if (lastPosition == position) Some(prevTask.get(JOB.OUTPUT)) else None, prevTask.get(JOB.UUID))
+          (
+            prevTask.get(TASK.OUTPUT),
+            if (lastPosition == position) Some(prevTask.get(JOB.OUTPUT)) else None,
+            prevTask.get(JOB.UUID)
+          )
         }
       }
 
@@ -317,6 +325,7 @@ class DBQueue @Inject()(db: Database,
         .update(TASK)
         .set(TASK.INPUT, input)
         .set(TASK.OUTPUT, output.getOrElse(null))
+        .where(TASK.ID.eq(res.getId))
         .execute()
 
       logger.debug(s"Request got back ${update}")
