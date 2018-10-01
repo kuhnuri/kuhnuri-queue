@@ -409,7 +409,7 @@ class DBQueueSpec extends FlatSpec with Matchers with BeforeAndAfter with Before
 
       val dispatcher = app.injector.instanceOf[Dispatcher]
       val task = dispatcher.request(List("html5", "upload"), worker).get
-      val taskResult = JobResult(task.copy(status = StatusString.Done), List.empty)
+      val taskResult = JobResult(task.copy(status = StatusString.Done, output = Some("file://tmp")), List.empty)
       dispatcher.submit(taskResult)
       dispatcher.request(List("html5", "upload"), worker)
 

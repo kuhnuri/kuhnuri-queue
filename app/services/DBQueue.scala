@@ -359,6 +359,7 @@ class DBQueue @Inject()(db: Database,
       sql
         .update(TASK)
         .set(TASK.STATUS, Status.valueOf(res.task.status.toString))
+        .set(TASK.OUTPUT, res.task.output.orNull)
         .set(TASK.FINISHED, now)
         .where(TASK.UUID.eq(res.task.id))
         .execute()
