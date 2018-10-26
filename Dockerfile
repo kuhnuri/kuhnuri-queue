@@ -7,8 +7,6 @@ COPY target/universal/stage/lib /opt/app/lib
 COPY docker/run.sh /opt/app/run.sh
 RUN chmod 755 /opt/app/run.sh
 
-RUN mkdir -p /opt/workspace
-
 EXPOSE 9000
 VOLUME ["/var/log/app", "/tmp/app", "/var/lib/app"]
 
