@@ -35,34 +35,34 @@
   <logger name="com.gargoylesoftware.htmlunit.javascript" level="OFF" />
   <!--logger name="org.jooq" level="INFO" /-->
 
-  <logger name="services.DBQueue" level="INFO">
+  <logger name="services.DBQueue" level="DEBUG">
     <!--<appender-ref ref="ASYNCFILE" />-->
   </logger>
-  <logger name="services.SimpleQueue" level="INFO">
-    <!--<appender-ref ref="ASYNCFILE" />-->
-  </logger>
-
-  <logger name="controllers.v1.ListController" level="INFO">
+  <logger name="services.SimpleQueue" level="DEBUG">
     <!--<appender-ref ref="ASYNCFILE" />-->
   </logger>
 
-  <logger name="controllers.v1.WorkController" level="INFO">
+  <logger name="controllers.v1.ListController" level="DEBUG">
     <!--<appender-ref ref="ASYNCFILE" />-->
   </logger>
 
-  <logger name="services.SimpleLogStore" level="INFO">
+  <logger name="controllers.v1.WorkController" level="DEBUG">
     <!--<appender-ref ref="ASYNCFILE" />-->
   </logger>
 
-  <logger name="controllers.v1.AuthenticationController" level="INFO">
+  <logger name="services.SimpleLogStore" level="DEBUG">
     <!--<appender-ref ref="ASYNCFILE" />-->
   </logger>
 
-  <logger name="filters.TokenAuthorizationFilter" level="INFO">
+  <logger name="controllers.v1.AuthenticationController" level="DEBUG">
     <!--<appender-ref ref="ASYNCFILE" />-->
   </logger>
 
-  <root level="INFO">
+  <logger name="filters.TokenAuthorizationFilter" level="DEBUG">
+    <!--<appender-ref ref="ASYNCFILE" />-->
+  </logger>
+
+  <root level="DEBUG">
     <!--appender-ref ref="ASYNCFILE" /-->
     <appender-ref ref="ASYNCSTDOUT" />
   </root>
