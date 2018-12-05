@@ -3,6 +3,8 @@
 # ~~~~
 
 GET         /                          controllers.HomeController.index
+GET         /health                    controllers.HomeController.health
+
 
 POST        /api/v1/login              controllers.v1.AuthenticationController.login
 POST        /api/v1/logout             controllers.v1.AuthenticationController.logout

@@ -43,6 +43,8 @@
     <!--<appender-ref ref="ASYNCFILE" />-->
   </logger>
 
+  <logger name="controllers.HomeController" level="DEBUG"/>
+
   <logger name="controllers.v1.ListController" level="DEBUG">
     <!--<appender-ref ref="ASYNCFILE" />-->
   </logger>
