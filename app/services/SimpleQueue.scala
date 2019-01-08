@@ -110,7 +110,7 @@ class SimpleQueue @Inject()(ws: WSClient,
   override def log(id: String, offset: Int): Option[Seq[String]] = ???
 
   override def add(newJob: Create): Job = {
-    val id = UUID.randomUUID().toString
+    val id = newJob.id.getOrElse(UUID.randomUUID().toString)
     val transtypes = getTranstypes(newJob.transtype)
     val params = getParams(newJob.transtype) ++ newJob.params
     val job = Job(

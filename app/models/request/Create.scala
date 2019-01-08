@@ -8,10 +8,11 @@ import play.api.libs.functional.syntax._
 import play.api.libs.json.Reads._
 import play.api.libs.json._
 
-sealed case class Create(input: String, output: String, transtype: Seq[String], priority: Option[Int], params: Map[String, String]) {
+sealed case class Create(id: Option[String], input: String, output: String, transtype: Seq[String],
+                         priority: Option[Int], params: Map[String, String]) {
   @Deprecated
   def toJob: Job = {
-    val id = UUID.randomUUID().toString
+    val id = this.id.getOrElse(UUID.randomUUID().toString)
 
     Job(
       id,
@@ -40,7 +41,8 @@ sealed case class Create(input: String, output: String, transtype: Seq[String], 
 object Create {
 
   implicit val createReads: Reads[Create] = (
-    (JsPath \ "input").read[String] /*.filter(new URI(_).isAbsolute)*/ and
+    (JsPath \ "id").readNullable[String] and
+      (JsPath \ "input").read[String] /*.filter(new URI(_).isAbsolute)*/ and
       (JsPath \ "output").read[String] /*.filter(_.map {
         new URI(_).isAbsolute
       }.getOrElse(true))*/ and

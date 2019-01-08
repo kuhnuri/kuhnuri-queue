@@ -437,7 +437,7 @@ class DBQueueSpec extends FlatSpec with Matchers with BeforeAndAfter with Before
       connection.createStatement().execute(fixture)
 
       val queue = app.injector.instanceOf[Queue]
-      val create = Create(IN_URL, OUT_URL, List("html5", "upload"), None, Map.empty)
+      val create = Create(None, IN_URL, OUT_URL, List("html5", "upload"), None, Map.empty)
       queue.add(create)
 
       val jobRes = map("SELECT count(ID) FROM job",
