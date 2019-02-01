@@ -34,7 +34,7 @@ class SimpleQueue @Inject()(ws: WSClient,
 
   val data: mutable.Map[String, Job] = load()
 
-  actorSystem.scheduler.schedule(initialDelay = 10.seconds, interval = 1.minutes)(checkQueue)
+  actorSystem.scheduler.schedule(initialDelay = 10.seconds, interval = 15.minutes)(checkQueue)
 
   /**
     * Return stale tasks back to queue.
