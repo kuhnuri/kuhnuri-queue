@@ -25,7 +25,7 @@ class WorkController @Inject()(dispatcher: Dispatcher, cc: ControllerComponents)
       json.validate[List[String]].map {
         case req: List[String] => {
           val worker = request.attrs(WORKER_ATTR)
-          logger.info("Request work for " + req.mkString(", "))
+          logger.debug("Request work for " + req.mkString(", "))
           Future {
             dispatcher.request(req, worker)
           }.map {
