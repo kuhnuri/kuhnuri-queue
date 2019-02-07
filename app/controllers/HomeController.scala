@@ -14,7 +14,7 @@ class HomeController @Inject()(cc: ControllerComponents) extends AbstractControl
   }
 
   def health = Action {
-    logger.info("Check health")
+    logger.debug("Check health")
     Ok("")
   }
 

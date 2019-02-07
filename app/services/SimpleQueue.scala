@@ -135,6 +135,7 @@ class SimpleQueue @Inject()(ws: WSClient,
       None,
       StatusString.Queue)
 
+    logger.info(s"Add ${job}")
     data.synchronized {
       data += job.id -> job
     }
